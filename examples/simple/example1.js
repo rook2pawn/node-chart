@@ -4,7 +4,7 @@ var datasource = new ee;
 $(window).ready(function() {
     var chart = new nodechart.Chart();
     chart.series(datasource);
-    chart.toDiv(document.getElementById('mydiv'));
+    chart.to(document.getElementById('mycanvas'));
     setInterval(function() {
         datasource.emit('data',Math.floor(Math.random()*100));
     },1000);

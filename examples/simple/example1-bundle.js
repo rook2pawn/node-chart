@@ -653,16 +653,23 @@ require.define("/index.js",function(require,module,exports,__dirname,__filename,
 var to = function(el) {
     this.canvas = el;
     this.ctx = el.getContext('2d');
+    this.ctx.font = '20pt Arial';
+    this.sources.forEach(function(source) {
+        var put = function(data) {
+            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);    
+            this.ctx.fillText(data,0,100);
+        };
+        source.on('data',put.bind(this));
+    },this);
 };
 var todiv = function(el) {
     this.div = el;
-    for (var i = 0; i < this.sources.length; i++) {
-        var source = this.sources[i];
+    this.sources.forEach(function(source) {
         var put = function(data) {
             this.div.innerHTML = data;
         };
         source.on('data',put.bind(this));
-    }
+    });
 };
 var chart = function() {
     this.sources = [];
@@ -679,7 +686,7 @@ var datasource = new ee;
 $(window).ready(function() {
     var chart = new nodechart.Chart();
     chart.series(datasource);
-    chart.toDiv(document.getElementById('mydiv'));
+    chart.to(document.getElementById('mycanvas'));
     setInterval(function() {
         datasource.emit('data',Math.floor(Math.random()*100));
     },1000);

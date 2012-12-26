@@ -7,16 +7,24 @@ var series = function() {
 var to = function(el) {
     this.canvas = el;
     this.ctx = el.getContext('2d');
+    this.ctx.font = '20pt Arial';
+    this.ctx.fillStyle = '#000000';
+    this.sources.forEach(function(source) {
+        var put = function(data) {
+            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);    
+            this.ctx.fillText(data,0,100);
+        };
+        source.on('data',put.bind(this));
+    },this);
 };
 var todiv = function(el) {
     this.div = el;
-    for (var i = 0; i < this.sources.length; i++) {
-        var source = this.sources[i];
+    this.sources.forEach(function(source) {
         var put = function(data) {
             this.div.innerHTML = data;
         };
         source.on('data',put.bind(this));
-    }
+    },this);
 };
 var chart = function() {
     this.sources = [];
