@@ -6,7 +6,7 @@ Time Series Charting Canvas API
 Use
 ===
 
-    var chart = new nodeChart();
+    var chart = new Chart();
     var ee = require('events').EventEmitter;
     var datasource = new ee;
 
@@ -39,6 +39,7 @@ chart.series
 Event types that chart.series responds to are 
 
 'data' - provides data for timeseries and optional labels
+
 'stop' - stops the timeseries for that datastream
 
 You can supply a label
@@ -58,3 +59,10 @@ You can supply multiple labels across the same datasource
 
     datasorce.emit('data',{y:9.2,label:"Units Sold"})
     datasorce.emit('data',{y:30,label:"Current Energy consumption"})
+
+
+MISC
+====
+
+Author: David Wee <rook2pawn@gmail.com>
+License: MIT
