@@ -12,5 +12,5 @@ $(window).ready(function() {
     },1000);
     setInterval(function() {
         datasource2.emit('data',Math.floor(Math.random()*40+60));
-    },300);
+    },3000);
 });

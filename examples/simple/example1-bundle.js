@@ -687,17 +687,31 @@ var to = function(el) {
             var spacing = lib.getSpacing(windowsize,this.canvas.width);
 
             this.bufferctx[id].clearRect(0,0,this.buffer[id].width,this.buffer[id].height);    
+
+            // draw lines
+            datatodisplay.forEach(function(data,idx) {
+                if (idx === 0) {
+                    this.bufferctx[id].beginPath();
+                    this.bufferctx[id].moveTo(x+idx*spacing);
+                    this.bufferctx[id].strokeStyle = '#FFF';
+//                    this.bufferctx.strokeStyle='rgb('+source.color[0]+','+source.color[1]+','+source.color[2]+')';
+                } 
+                this.bufferctx[id].lineTo(x+(idx*spacing),this.buffer[id].height - data);
+                if (idx == (datatodisplay.length -1)) {
+                    this.bufferctx[id].stroke();
+                }
+            },this);
+        
+            // draw dots
             datatodisplay.forEach(function(data,idx) {
                 lib.drawDot({
                     x:x+(idx*spacing),
                     y:this.buffer[id].height - data, 
-                    radius:5,
+                    radius:3,
                     ctx:this.bufferctx[id],
                     color:source.color
                 });
             },this);
-            
-//            this.ctx.fillText(data,0,100);
         };
         source.on('data',put.bind(this));
     },this);
@@ -743,6 +757,11 @@ exports.getStartX = function(length,windowsize,canvaswidth) {
 exports.drawDot = function(params) {
     params.ctx.beginPath();
     params.ctx.strokeStyle='rgb('+params.color[0]+','+params.color[1]+','+params.color[2]+')';
+    params.ctx.arc(params.x, params.y, params.radius, 0, Math.PI*2, false);
+    params.ctx.stroke();
+};
+exports.drawLine = function(params) {
+    params.ctx.beginPath();
     params.ctx.arc(params.x, params.y, params.radius, 0, Math.PI*2, false);
     params.ctx.stroke();
 };
@@ -1445,7 +1464,7 @@ $(window).ready(function() {
     },1000);
     setInterval(function() {
         datasource2.emit('data',Math.floor(Math.random()*40+60));
-    },300);
+    },3000);
 });
 });
 require("/examples/simple/example1.js");
