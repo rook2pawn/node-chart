@@ -17,6 +17,9 @@ var series = function() {
 };
 var to = function(el) {
     this.canvas = el;
+    var wrappingDiv = document.createElement('div');
+    wrappingDiv.height = this.canvas.height;
+    $(this.canvas).wrap(wrappingDiv);
     this.ctx = el.getContext('2d');
     this.ctx.fillStyle = '#000';
     this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
