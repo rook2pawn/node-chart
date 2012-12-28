@@ -1,17 +1,32 @@
 var lib = require('./lib');
+var hat = require('hat');
+var rack = hat.rack();
+var mrcolor = require('mrcolor');
+var nextcolor = mrcolor();
 
 var series = function() {
     var args = [].slice.call(arguments,0);
     for (var i = 0;i < args.length; i++) {
-        this.sources.push(args[i]);
+        var source = args[i];
+        var id = rack();
+        source.id = id; 
+        this.buffer[id] = document.createElement('canvas');
+        this.bufferctx[id] = this.buffer[id].getContext('2d');
+        this.sources.push(source);
     }
 };
 var to = function(el) {
     this.canvas = el;
     this.ctx = el.getContext('2d');
-    this.ctx.font = '20pt Arial';
-    this.ctx.fillStyle = '#000000';
+    this.ctx.fillStyle = '#000';
+    this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
     this.sources.forEach(function(source) {
+        var id = source.id;    
+        this.buffer[id].width = this.canvas.width;
+        this.buffer[id].height = this.canvas.height;
+        source.color = nextcolor().rgb();
+        $(this.buffer[id]).css('position','absolute');
+        $(el).before(this.buffer[id]);
         var put = function(data) {
             if (source.count === undefined)
                 source.count = 0;
@@ -25,13 +40,16 @@ var to = function(el) {
             var x = lib.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
             var spacing = lib.getSpacing(windowsize,this.canvas.width);
 
-            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);    
+            this.bufferctx[id].clearRect(0,0,this.buffer[id].width,this.buffer[id].height);    
             datatodisplay.forEach(function(data,idx) {
-                this.ctx.beginPath();
-                this.ctx.arc(x + (idx*spacing), this.canvas.height - data, 5, 0, Math.PI*2, false);
-                this.ctx.stroke();
+                lib.drawDot({
+                    x:x+(idx*spacing),
+                    y:this.buffer[id].height - data, 
+                    radius:5,
+                    ctx:this.bufferctx[id],
+                    color:source.color
+                });
             },this);
-//            this.ctx.fillText(data,0,100);
         };
         source.on('data',put.bind(this));
     },this);
