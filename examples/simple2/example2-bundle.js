@@ -2061,22 +2061,21 @@ hat.rack = function (bits, base, expandBy) {
 };
 });
 
-require.define("/examples/simple/example1.js",function(require,module,exports,__dirname,__filename,process){var ee = require('events').EventEmitter;
+require.define("/examples/simple2/example2.js",function(require,module,exports,__dirname,__filename,process){var ee = require('events').EventEmitter;
 var nodechart = require('../../index.js');
 var datasource = new ee;
-var datasource2 = new ee;
 $(window).ready(function() {
     var chart = new nodechart.Chart();
     chart.series(datasource);
-    chart.series(datasource2);
     chart.to(document.getElementById('mycanvas'));
+    var height = 400;
     setInterval(function() {
-        datasource.emit('data',Math.floor(Math.random()*100));
+        var a = Math.floor(Math.random()*height);
+        var b = Math.floor(Math.random()*height);
+        var c = Math.floor(Math.random()*height);
+        datasource.emit('data',{a:a,b:b,c:c});
     },1000);
-    setInterval(function() {
-        datasource2.emit('data',Math.floor(Math.random()*40+60));
-    },3000);
 });
 });
-require("/examples/simple/example1.js");
+require("/examples/simple2/example2.js");
 })();

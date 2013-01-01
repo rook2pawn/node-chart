@@ -42,23 +42,33 @@ Event types that chart.series responds to are
 
 'stop' - stops the timeseries for that datastream
 
-You can supply a label
-----------------------
+chart.legend
+============
 
-    datasorce.emit('data',{y:9.2,label:"Units Sold"})
+    <canvas id='legend'></canvas>
+    chart.legend(document.getElementById('legend'));
+
+Legend is automatically created with the data that is sent. 
+To visualize and interact with a legend, use the .legend callback
+
+
+Labels go with the value
+------------------------
+
+    datasorce.emit('data',{'units sold':9.2})
 
 You can supply multiple labels
 ------------------------------
 
-    datasorce1.emit('data',{y:9.2,label:"Units Sold"})
-    datasorce2.emit('data',{y:30,label:"Current Energy consumption"})
+    datasorce1.emit('data',{'units sold':9.2})
+    datasorce2.emit('data',{'current energy consumption':30})
 
+Tests
+=====
 
-You can supply multiple labels across the same datasource
----------------------------------------------------------
-
-    datasorce.emit('data',{y:9.2,label:"Units Sold"})
-    datasorce.emit('data',{y:30,label:"Current Energy consumption"})
+    // to install tap, simply npm install tap
+    
+    tap ./test
 
 
 MISC
@@ -66,3 +76,4 @@ MISC
 
 Author: David Wee <rook2pawn@gmail.com>
 License: MIT
+Developed At : Malhar, Inc. <david@malhar-inc.com>

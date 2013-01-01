@@ -1,8 +1,6 @@
 var lib = require('./lib');
 var hat = require('hat');
 var rack = hat.rack();
-var mrcolor = require('mrcolor');
-var nextcolor = mrcolor();
 
 var series = function() {
     var args = [].slice.call(arguments,0);
@@ -16,62 +14,9 @@ var series = function() {
     }
 };
 var to = function(el) {
-    this.canvas = el;
-    var wrappingDiv = document.createElement('div');
-    wrappingDiv.height = this.canvas.height;
-    $(this.canvas).wrap(wrappingDiv);
-    this.ctx = el.getContext('2d');
-    this.ctx.fillStyle = '#000';
-    this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-    this.sources.forEach(function(source) {
-        var id = source.id;    
-        this.buffer[id].width = this.canvas.width;
-        this.buffer[id].height = this.canvas.height;
-        source.color = nextcolor().rgb();
-        $(this.buffer[id]).css('position','absolute');
-        $(el).before(this.buffer[id]);
-        var put = function(data) {
-            if (source.count === undefined)
-                source.count = 0;
-            source.count++;
-            if (source.dataset === undefined)
-                source.dataset = [];
-            source.dataset.push(data); 
-            
-            var windowsize = source.windowsize || 10;
-            var datatodisplay = lib.cropData(source.dataset,windowsize);
-            var x = lib.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
-            var spacing = lib.getSpacing(windowsize,this.canvas.width);
-
-            this.bufferctx[id].clearRect(0,0,this.buffer[id].width,this.buffer[id].height);    
-
-            // draw lines
-            datatodisplay.forEach(function(data,idx) {
-                if (idx === 0) {
-                    this.bufferctx[id].beginPath();
-                    this.bufferctx[id].moveTo(x+idx*spacing);
-                    this.bufferctx[id].strokeStyle = '#FFF';
-//                    this.bufferctx.strokeStyle='rgb('+source.color[0]+','+source.color[1]+','+source.color[2]+')';
-                } 
-                this.bufferctx[id].lineTo(x+(idx*spacing),this.buffer[id].height - data);
-                if (idx == (datatodisplay.length -1)) {
-                    this.bufferctx[id].stroke();
-                }
-            },this);
-        
-            // draw dots
-            datatodisplay.forEach(function(data,idx) {
-                lib.drawDot({
-                    x:x+(idx*spacing),
-                    y:this.buffer[id].height - data, 
-                    radius:3,
-                    ctx:this.bufferctx[id],
-                    color:source.color
-                });
-            },this);
-        };
-        source.on('data',put.bind(this));
-    },this);
+    // wrap canvas in a div, set this.canvas and this.ctx
+    lib.setCanvas(el,this)
+    this.sources.forEach(lib.setSource.bind(this));
 };
 var todiv = function(el) {
     this.div = el;
