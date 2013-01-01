@@ -677,6 +677,15 @@ var legend = function(el) {
     this.legend = el; 
     this.legend.width=300;this.legend.height=200;
     this.legendctx = el.getContext('2d');
+    var jq_el = $(el);
+    jq_el.css('cursor','pointer');
+    var jq_offset_left = jq_el.offset().left;
+    var jq_offset_top = jq_el.offset().top;
+    jq_el.mousemove(function(ev) {
+        var offx = ev.pageX - jq_offset_left;
+        var offy = ev.pageY - jq_offset_top;
+        el.getContext('2d').strokeRect(offx,offy,30,10);  
+    });
 };
 var chart = function() {
     this.buffer = document.createElement('canvas');
