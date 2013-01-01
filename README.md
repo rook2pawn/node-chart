@@ -45,7 +45,7 @@ Event types that chart.series responds to are
 chart.legend
 ============
 
-    <canvas id='legend'></canvas>
+    <div id='legend'></div>
     chart.legend(document.getElementById('legend'));
 
 Legend is automatically created with the data that is sent. 

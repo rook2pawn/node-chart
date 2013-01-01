@@ -675,17 +675,11 @@ var todiv = function(el) {
 };
 var legend = function(el) {
     this.legend = el; 
-    this.legend.width=300;this.legend.height=200;
-    this.legendctx = el.getContext('2d');
     var jq_el = $(el);
+    jq_el.css('width','300px');
+    jq_el.css('background-color','black');
     jq_el.css('cursor','pointer');
-    var jq_offset_left = jq_el.offset().left;
-    var jq_offset_top = jq_el.offset().top;
-    jq_el.mousemove(function(ev) {
-        var offx = ev.pageX - jq_offset_left;
-        var offy = ev.pageY - jq_offset_top;
-        el.getContext('2d').strokeRect(offx,offy,30,10);  
-    });
+    jq_el.css('color','#FFF');
 };
 var chart = function() {
     this.buffer = document.createElement('canvas');
@@ -801,11 +795,14 @@ exports.setSource = function(source) {
         exports.legendGetKeys(datatodisplay,this.yaxises); 
 
         if (this.legend !== undefined) {
-            this.legend.height = Object.keys(this.yaxises).length * 30;
-            this.legendctx.fillStyle = '#000';
-            this.legendctx.fillRect(0,0,this.legend.width,this.legend.height);
-            this.legendctx.strokeStyle='#FF0000';
-            this.legendctx.strokeRect(0,0,this.legend.width,this.legend.height);
+            $(this.legend).css('height',Object.keys(this.yaxises).length * 30);
+            $(this.legend).empty();
+            Object.keys(this.yaxises).forEach(function(axis,idx) {
+                $(this.legend)
+                    .append('<div class="legend">' + axis + '</div>')
+                    .css('font-family','sans-serif');
+            },this);
+/*
             Object.keys(this.yaxises).forEach(function(axis,idx) {
                 this.legendctx.fillStyle = '#FFF';
                 this.legendctx.font = '12px sans-serif';
@@ -816,6 +813,7 @@ exports.setSource = function(source) {
                 this.legendctx.lineTo((axis.length*7)+30,(idx*30)+13);
                 this.legendctx.stroke();
             },this);
+*/
         }
 
         Object.keys(this.yaxises).forEach(function(yaxis) {
