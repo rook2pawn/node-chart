@@ -15,7 +15,8 @@
   },
   "main": "index.js",
   "dependencies": {
-    "hat" :""
+    "hat" :"",
+    "mrcolor" :""
   },
   "devDependencies": {}
 }

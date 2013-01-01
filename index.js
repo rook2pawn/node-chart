@@ -27,6 +27,11 @@ var todiv = function(el) {
         source.on('data',put.bind(this));
     },this);
 };
+var legend = function(el) {
+    this.legend = el; 
+    this.legend.width=300;this.legend.height=200;
+    this.legendctx = el.getContext('2d');
+};
 var chart = function() {
     this.buffer = document.createElement('canvas');
     this.bufferctx = this.buffer.getContext('2d');
@@ -34,5 +39,6 @@ var chart = function() {
     this.to = to;
     this.toDiv = todiv;
     this.series = series;
+    this.legend = legend;
 };
 exports.Chart = chart;
