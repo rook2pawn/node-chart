@@ -717,7 +717,12 @@ exports.setSource = function(source) {
         if (source.dataset === undefined)
             source.dataset = [];
         source.dataset.push(data); 
-        util.draw({canvas:this.canvas,source:source,data:data,buffer:this.buffer[id],bufferctx:this.bufferctx[id]});
+
+        var windowsize = source.windowsize || data.windowsize || 10;
+        var datatodisplay = util.cropData(source.dataset,windowsize);
+        var startx = util.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
+        var spacing = util.getSpacing(windowsize,this.canvas.width);
+        util.draw({canvas:this.canvas,startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id]});
     };
     source.on('data',onDataGraph.bind(this));
 };
@@ -770,19 +775,12 @@ exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
     },this);
 };
 exports.draw = function (params) {
-    var source = params.source;
-    var data = params.data;
+    var datatodisplay = params.datatodisplay;
+    var startx = params.startx;
+    var spacing = params.spacing;
     var canvas = params.canvas;
     var buffer = params.buffer;
     var bufferctx = params.bufferctx;
-
-
-   // to work on : legends, time grids, mouseover data / interactivity, y-axis scaling,
-    // animation 
-    var windowsize = source.windowsize || data.windowsize || 10;
-    var datatodisplay = exports.cropData(source.dataset,windowsize);
-    var x = exports.getStartX(datatodisplay.length,windowsize,canvas.width); 
-    var spacing = exports.getSpacing(windowsize,canvas.width);
 
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
 
@@ -794,8 +792,8 @@ exports.draw = function (params) {
         bufferctx.lineTo(canvas.width,i*heightchunks);
         bufferctx.stroke();
     }
-    exports.drawVerticalGrid(datatodisplay,bufferctx,spacing,x,buffer.height);
-    
+    exports.drawVerticalGrid(datatodisplay,bufferctx,spacing,startx,buffer.height);
+   
     var yaxises = legend.update(datatodisplay);
     if (this.legend !== undefined) 
         legend.updateHTML({el:this.legend});
@@ -806,9 +804,9 @@ exports.draw = function (params) {
         datatodisplay.forEach(function(data,idx) {
             if (idx === 0) {
                 bufferctx.beginPath();
-                bufferctx.moveTo(x+idx*spacing,buffer.height - data[yaxis]);
+                bufferctx.moveTo(startx+idx*spacing,buffer.height - data[yaxis]);
             } 
-            bufferctx.lineTo(x+(idx*spacing),buffer.height - data[yaxis]);
+            bufferctx.lineTo(startx+(idx*spacing),buffer.height - data[yaxis]);
             if (idx == (datatodisplay.length -1)) {
                 bufferctx.stroke();
             }
@@ -816,7 +814,7 @@ exports.draw = function (params) {
         // draw dots
         datatodisplay.forEach(function(data,idx) {
             drawDot({
-                x:x+(idx*spacing),
+                x:startx+(idx*spacing),
                 y:buffer.height - data[yaxis], 
                 radius:3,
                 ctx:bufferctx,
