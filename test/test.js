@@ -1,14 +1,5 @@
 var lib = require('../lib');
 var test = require('tap').test;
-test('legend',function(t) {
-    t.plan(1);
-    var x1 = {a:1,b:2};
-    var x2 = {c:3};
-    var y = [x1,x2];
-    var legend = {};
-    lib.legendGetKeys(y,legend);
-    t.deepEqual(legend,{a:true,b:true,c:true}); 
-});
 test('cropdata',function(t) {
     t.plan(3);
     var x = [1,2,3,4,5,6];

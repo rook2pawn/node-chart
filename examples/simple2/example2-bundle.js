@@ -694,7 +694,9 @@ exports.Chart = chart;
 });
 
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
+var hat = require('hat');
 var nextcolor = mrcolor();
+var rack = hat.rack(128,10,2);
 
 exports.cropData = function(list,windowsize) {
     if (list.length < windowsize)
@@ -798,9 +800,14 @@ exports.setSource = function(source) {
             $(this.legend).css('height',Object.keys(this.yaxises).length * 30);
             $(this.legend).empty();
             Object.keys(this.yaxises).forEach(function(axis,idx) {
+                var legendid = '_'+rack(axis);
                 $(this.legend)
-                    .append('<div class="legend">' + axis + '</div>')
+                    .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><div class="legendline"></div></div>')
                     .css('font-family','sans-serif');
+                $('#'+legendid).click(function() {
+                    var legendname = rack.get(legendid.slice(1));
+                    console.log(legendname);
+                });
             },this);
 /*
             Object.keys(this.yaxises).forEach(function(axis,idx) {
@@ -817,7 +824,6 @@ exports.setSource = function(source) {
         }
 
         Object.keys(this.yaxises).forEach(function(yaxis) {
-
       
             // draw lines
             this.bufferctx[id].strokeStyle= 'rgb('+this.yaxises[yaxis].color[0]+','+this.yaxises[yaxis].color[1]+','+this.yaxises[yaxis].color[2]+')';
