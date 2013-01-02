@@ -36,8 +36,8 @@ var legend = function(el) {
     jq_el.css('color','#FFF');
 };
 var chart = function() {
-    this.buffer = document.createElement('canvas');
-    this.bufferctx = this.buffer.getContext('2d');
+    this.buffer = {};
+    this.bufferctx = {};
     this.sources = [];
     this.to = to;
     this.toDiv = todiv;

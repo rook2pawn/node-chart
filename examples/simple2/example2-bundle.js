@@ -682,8 +682,8 @@ var legend = function(el) {
     jq_el.css('color','#FFF');
 };
 var chart = function() {
-    this.buffer = document.createElement('canvas');
-    this.bufferctx = this.buffer.getContext('2d');
+    this.buffer = {};
+    this.bufferctx = {};
     this.sources = [];
     this.to = to;
     this.toDiv = todiv;
@@ -693,13 +693,38 @@ var chart = function() {
 exports.Chart = chart;
 });
 
-require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var legend = require('./legend');
+require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
 
-exports.cropData = function(list,windowsize) {
-    if (list.length < windowsize)
-        return list
-    else return list.slice(list.length - windowsize)
+exports.setCanvas = function(el,that) {
+    that.canvas = el;
+    var wrappingDiv = document.createElement('div');
+    wrappingDiv.height = that.canvas.height;
+    $(that.canvas).wrap(wrappingDiv);
+    that.ctx = el.getContext('2d');
+    that.ctx.fillStyle = '#000';
+    that.ctx.fillRect(0,0,that.canvas.width,that.canvas.height);
 };
+exports.setSource = function(source) {
+    var id = source.id;    
+    this.buffer[id].width = this.canvas.width;
+    this.buffer[id].height = this.canvas.height;
+    $(this.buffer[id]).css('position','absolute');
+    $(this.canvas).before(this.buffer[id]);
+    var onDataGraph = function(data) {
+        if (source.count === undefined)
+            source.count = 0;
+        source.count++;
+        if (source.dataset === undefined)
+            source.dataset = [];
+        source.dataset.push(data); 
+        util.draw({canvas:this.canvas,source:source,data:data,buffer:this.buffer[id],bufferctx:this.bufferctx[id]});
+    };
+    source.on('data',onDataGraph.bind(this));
+};
+});
+
+require.define("/lib/util.js",function(require,module,exports,__dirname,__filename,process){var legend = require('./legend');
+
 var getSpacing = function(windowsize,canvaswidth) {
     return Math.floor(canvaswidth / (windowsize-1));
 }
@@ -713,110 +738,93 @@ exports.getStartX = function(length,windowsize,canvaswidth) {
         x = 0;
     return x;
 };
-exports.drawDot = function(params) {
+exports.cropData = function(list,windowsize) {
+    if (list.length < windowsize)
+        return list
+    else return list.slice(list.length - windowsize)
+};
+var colorToString = function(color) {
+    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
+};
+exports.colorToString = colorToString;
+var drawDot = function(params) {
     params.ctx.beginPath();
-    params.ctx.strokeStyle='rgb('+params.color[0]+','+params.color[1]+','+params.color[2]+')';
+    params.ctx.strokeStyle = colorToString(params.color);
     params.ctx.arc(params.x, params.y, params.radius, 0, Math.PI*2, false);
     params.ctx.stroke();
 };
+exports.drawDot = drawDot;
 exports.drawLine = function(params) {
     params.ctx.beginPath();
     params.ctx.arc(params.x, params.y, params.radius, 0, Math.PI*2, false);
     params.ctx.stroke();
 };
-
-exports.setCanvas = function(el,that) {
-    that.canvas = el;
-    var wrappingDiv = document.createElement('div');
-    wrappingDiv.height = that.canvas.height;
-    $(that.canvas).wrap(wrappingDiv);
-    that.ctx = el.getContext('2d');
-    that.ctx.fillStyle = '#000';
-    that.ctx.fillRect(0,0,that.canvas.width,that.canvas.height);
+exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
+    // draw vertical grid
+    datatodisplay.forEach(function(data,idx) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath();
+        ctx.moveTo(startx+idx*spacing,0);
+        ctx.lineTo(startx+idx*spacing,height);
+        ctx.stroke();
+    },this);
 };
-var colorToString = function(color) {
-    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
-};
-exports.setSource = function(source) {
-    var id = source.id;    
-    this.buffer[id].width = this.canvas.width;
-    this.buffer[id].height = this.canvas.height;
-    $(this.buffer[id]).css('position','absolute');
-    $(this.canvas).before(this.buffer[id]);
-    this.yaxises = {};
-    var onDataGraph = function(data) {
-        if (source.count === undefined)
-            source.count = 0;
-        source.count++;
-        if (source.dataset === undefined)
-            source.dataset = [];
-        source.dataset.push(data); 
-         
-       // to work on : legends, time grids, mouseover data / interactivity, y-axis scaling,
-        // animation 
-        var windowsize = source.windowsize || data.windowsize || 10;
-        var datatodisplay = exports.cropData(source.dataset,windowsize);
-        var x = exports.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
-        var spacing = exports.getSpacing(windowsize,this.canvas.width);
-
-        this.bufferctx[id].clearRect(0,0,this.buffer[id].width,this.buffer[id].height);    
+exports.draw = function (params) {
+    var source = params.source;
+    var data = params.data;
+    var canvas = params.canvas;
+    var buffer = params.buffer;
+    var bufferctx = params.bufferctx;
 
 
-        var heightchunks = Math.floor(this.canvas.height / 10);
-        for (var i = 0; i < heightchunks; i++) {
-            this.bufferctx[id].strokeStyle = 'rgba(255,255,255,0.2)';
-            this.bufferctx[id].beginPath();
-            this.bufferctx[id].moveTo(0,i*heightchunks);
-            this.bufferctx[id].lineTo(this.canvas.width,i*heightchunks);
-            this.bufferctx[id].stroke();
-        }
-        
-        // draw vertical grid
-        datatodisplay.forEach(function(data,idx) {
-            this.bufferctx[id].strokeStyle = 'rgba(255,255,255,0.5)';
-            this.bufferctx[id].beginPath();
-            this.bufferctx[id].moveTo(x+idx*spacing,0);
-            this.bufferctx[id].lineTo(x+idx*spacing,this.buffer[id].height);
-            this.bufferctx[id].stroke();
-        },this);
-   
-        // this populates this.yaxises of keynames from datatodisplay
-        this.yaxises = legend.update(datatodisplay);
-        legend.updateHTML({el:this.legend});
-//        legends.updateKeys(datatodisplay);
+   // to work on : legends, time grids, mouseover data / interactivity, y-axis scaling,
+    // animation 
+    var windowsize = source.windowsize || data.windowsize || 10;
+    var datatodisplay = exports.cropData(source.dataset,windowsize);
+    var x = exports.getStartX(datatodisplay.length,windowsize,canvas.width); 
+    var spacing = exports.getSpacing(windowsize,canvas.width);
 
+    bufferctx.clearRect(0,0,buffer.width,buffer.height);    
 
-        Object.keys(this.yaxises).forEach(function(yaxis) {
-      
-            // draw lines
-            this.bufferctx[id].strokeStyle= 'rgb('+this.yaxises[yaxis].color[0]+','+this.yaxises[yaxis].color[1]+','+this.yaxises[yaxis].color[2]+')';
-            datatodisplay.forEach(function(data,idx) {
-                if (idx === 0) {
-                    this.bufferctx[id].beginPath();
-                    this.bufferctx[id].moveTo(x+idx*spacing,this.buffer[id].height - data[yaxis]);
-                } 
-                this.bufferctx[id].lineTo(x+(idx*spacing),this.buffer[id].height - data[yaxis]);
-                if (idx == (datatodisplay.length -1)) {
-                    this.bufferctx[id].stroke();
-                }
-            },this); 
-
-            // draw dots
-            datatodisplay.forEach(function(data,idx) {
-                exports.drawDot({
-                    x:x+(idx*spacing),
-                    y:this.buffer[id].height - data[yaxis], 
-                    radius:3,
-                    ctx:this.bufferctx[id],
-                    color:this.yaxises[yaxis].color
-                });
-            },this);
-
-        },this);
+    var heightchunks = Math.floor(canvas.height / 10);
+    for (var i = 0; i < heightchunks; i++) {
+        bufferctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        bufferctx.beginPath();
+        bufferctx.moveTo(0,i*heightchunks);
+        bufferctx.lineTo(canvas.width,i*heightchunks);
+        bufferctx.stroke();
+    }
+    exports.drawVerticalGrid(datatodisplay,bufferctx,spacing,x,buffer.height);
     
-    };
-    source.on('data',onDataGraph.bind(this));
-};
+    var yaxises = legend.update(datatodisplay);
+    if (this.legend !== undefined) 
+        legend.updateHTML({el:this.legend});
+
+    Object.keys(yaxises).forEach(function(yaxis) {
+        // draw lines
+        bufferctx.strokeStyle = colorToString(yaxises[yaxis].color);
+        datatodisplay.forEach(function(data,idx) {
+            if (idx === 0) {
+                bufferctx.beginPath();
+                bufferctx.moveTo(x+idx*spacing,buffer.height - data[yaxis]);
+            } 
+            bufferctx.lineTo(x+(idx*spacing),buffer.height - data[yaxis]);
+            if (idx == (datatodisplay.length -1)) {
+                bufferctx.stroke();
+            }
+        },this); 
+        // draw dots
+        datatodisplay.forEach(function(data,idx) {
+            drawDot({
+                x:x+(idx*spacing),
+                y:buffer.height - data[yaxis], 
+                radius:3,
+                ctx:bufferctx,
+                color:yaxises[yaxis].color
+            });
+        },this);
+    },this);
+}
 });
 
 require.define("/lib/legend.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
@@ -827,6 +835,9 @@ var rack = hat.rack(128,10,2);
 var axishash = {};
 // foreach key in data add to hash axises 
 // if new addition, create a color.
+exports.colorToString = function(color) {
+    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
+};
 exports.update = function(list) {
     list.forEach(function(data) {
         Object.keys(data).forEach(function(key) {
@@ -854,13 +865,11 @@ exports.updateHTML = function(params) {
     Object.keys(axishash).forEach(function(axis) {
         if (axishash[axis].newarrival === true) {
             var legendid = '_'+rack(axis);
-            console.log("added legendid: " + legendid);
             $(el)
-                .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><div class="legendline"></div></div>')
+                .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><hr style="border:thin solid '+exports.colorToString(axishash[axis].color)+'" class="legendline" /></div>')
                 .css('font-family','sans-serif');
             $('#'+legendid).click(function() {
                 var legendname = rack.get(legendid.slice(1));
-                console.log(legendname);
             });
         }
     },this);
