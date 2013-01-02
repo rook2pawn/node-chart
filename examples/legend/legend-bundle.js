@@ -693,10 +693,7 @@ var chart = function() {
 exports.Chart = chart;
 });
 
-require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
-var hat = require('hat');
-var nextcolor = mrcolor();
-var rack = hat.rack(128,10,2);
+require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var legend = require('./legend');
 
 exports.cropData = function(list,windowsize) {
     if (list.length < windowsize)
@@ -736,17 +733,6 @@ exports.setCanvas = function(el,that) {
     that.ctx = el.getContext('2d');
     that.ctx.fillStyle = '#000';
     that.ctx.fillRect(0,0,that.canvas.width,that.canvas.height);
-};
-exports.legendGetKeys = function(list,axises) {
-    list.forEach(function(data) {
-        Object.keys(data).forEach(function(key) {
-            if (axises[key] === undefined) {
-                axises[key] = {
-                    color:nextcolor().rgb()
-                };
-            }
-        });
-    });
 };
 var colorToString = function(color) {
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
@@ -793,35 +779,12 @@ exports.setSource = function(source) {
             this.bufferctx[id].lineTo(x+idx*spacing,this.buffer[id].height);
             this.bufferctx[id].stroke();
         },this);
+   
+        // this populates this.yaxises of keynames from datatodisplay
+        this.yaxises = legend.update(datatodisplay);
+        legend.updateHTML({el:this.legend});
+//        legends.updateKeys(datatodisplay);
 
-        exports.legendGetKeys(datatodisplay,this.yaxises); 
-
-        if (this.legend !== undefined) {
-            $(this.legend).css('height',Object.keys(this.yaxises).length * 30);
-            $(this.legend).empty();
-            Object.keys(this.yaxises).forEach(function(axis,idx) {
-                var legendid = '_'+rack(axis);
-                $(this.legend)
-                    .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><div class="legendline"></div></div>')
-                    .css('font-family','sans-serif');
-                $('#'+legendid).click(function() {
-                    var legendname = rack.get(legendid.slice(1));
-                    console.log(legendname);
-                });
-            },this);
-/*
-            Object.keys(this.yaxises).forEach(function(axis,idx) {
-                this.legendctx.fillStyle = '#FFF';
-                this.legendctx.font = '12px sans-serif';
-                this.legendctx.fillText(axis,10,(idx*30)+15);
-                this.legendctx.strokeStyle = colorToString(this.yaxises[axis].color);
-                this.legendctx.beginPath();
-                this.legendctx.moveTo((axis.length*7)+12,(idx*30)+13);
-                this.legendctx.lineTo((axis.length*7)+30,(idx*30)+13);
-                this.legendctx.stroke();
-            },this);
-*/
-        }
 
         Object.keys(this.yaxises).forEach(function(yaxis) {
       
@@ -853,6 +816,54 @@ exports.setSource = function(source) {
     
     };
     source.on('data',onDataGraph.bind(this));
+};
+});
+
+require.define("/lib/legend.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
+var nextcolor = mrcolor();
+var hat = require('hat');
+var rack = hat.rack(128,10,2);
+
+var axishash = {};
+// foreach key in data add to hash axises 
+// if new addition, create a color.
+exports.update = function(list) {
+    list.forEach(function(data) {
+        Object.keys(data).forEach(function(key) {
+            if (axishash[key] === undefined) {
+                var color = nextcolor().rgb();
+                axishash[key] = {
+                    color:color,
+                    newarrival:true
+                };
+            } else {
+                axishash[key].newarrival = false;
+            }
+        });
+    });
+    return axishash;
+};
+exports.updateHTML = function(params) {
+    if (params.el === undefined) {
+        return;
+    }
+    var el = params.el;
+    // clear the this.legend html element
+    // foreach axis, create a clickable object from html world to logic world
+    $(this.legend).css('height',Object.keys(axishash).length * 30);
+    Object.keys(axishash).forEach(function(axis) {
+        if (axishash[axis].newarrival === true) {
+            var legendid = '_'+rack(axis);
+            console.log("added legendid: " + legendid);
+            $(el)
+                .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><div class="legendline"></div></div>')
+                .css('font-family','sans-serif');
+            $('#'+legendid).click(function() {
+                var legendname = rack.get(legendid.slice(1));
+                console.log(legendname);
+            });
+        }
+    },this);
 };
 });
 
