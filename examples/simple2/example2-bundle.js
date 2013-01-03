@@ -694,7 +694,7 @@ exports.Chart = chart;
 });
 
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
-var legend = require('./legend');
+var legend = require('./legend')({util:util});
 
 exports.setCanvas = function(el,that) {
     that.canvas = el;
@@ -729,7 +729,7 @@ exports.setSource = function(source) {
         this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);    
         util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
         util.drawVerticalGrid(datatodisplay.length,this.ctx,spacing,startx,this.canvas.height);
-        util.draw({canvas:this.canvas,startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
+        util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
     };
     source.on('data',onDataGraph.bind(this));
 };
@@ -791,15 +791,15 @@ exports.drawVerticalGrid = function(numlines,ctx,spacing,startx,height) {
         ctx.stroke();
     }
 };
+var lastsavedparams = {};
 exports.draw = function (params) {
+    lastsavedparams = params;
     var datatodisplay = params.datatodisplay;
     var startx = params.startx;
     var spacing = params.spacing;
-    var canvas = params.canvas;
     var buffer = params.buffer;
     var bufferctx = params.bufferctx;
     var yaxises = params.yaxises;
-
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
     Hash(yaxises)
         .filter(function(obj) {
@@ -828,9 +828,13 @@ exports.draw = function (params) {
                     color:yaxis.color
                 });
             },this);
-        });
-   
-}
+        })
+    ;
+};
+exports.redraw = function(params) {
+    lastsavedparams.yaxises = params.yaxises;
+    exports.draw(lastsavedparams);
+};
 });
 
 require.define("/node_modules/hashish/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./index.js"}});
@@ -1409,13 +1413,14 @@ var nextcolor = mrcolor();
 var hat = require('hat');
 var rack = hat.rack(128,10,2);
 
+var util = undefined;
 var axishash = {};
 // foreach key in data add to hash axises 
 // if new addition, create a color.
-exports.colorToString = function(color) {
+var colorToString = function(color) {
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
-exports.update = function(list) {
+var update = function(list) {
     list.forEach(function(data) {
         Object.keys(data).forEach(function(key) {
             if (axishash[key] === undefined) {
@@ -1432,26 +1437,33 @@ exports.update = function(list) {
     });
     return axishash;
 };
-exports.updateHTML = function(params) {
+var updateHTML = function(params) {
     if (params.el === undefined) {
         return;
     }
     var el = params.el;
-    // clear the this.legend html element
-    // foreach axis, create a clickable object from html world to logic world
     $(this.legend).css('height',Object.keys(axishash).length * 30);
     Object.keys(axishash).forEach(function(axis) {
         if (axishash[axis].newarrival === true) {
             var legendid = '_'+rack(axis);
             $(el)
-                .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><hr style="border:thin solid '+exports.colorToString(axishash[axis].color)+'" class="legendline" /></div>')
+                .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><hr style="border:thin solid '+colorToString(axishash[axis].color)+'" class="legendline" /></div>')
                 .css('font-family','sans-serif');
             $('#'+legendid).click(function() {
                 var legendname = rack.get(legendid.slice(1));
                 axishash[legendname].display = !axishash[legendname].display; // toggle boolean
+                util.redraw({yaxises:axishash});  
             });
         }
     },this);
+};
+exports = module.exports = function(params) {
+    if (params !== undefined) 
+        util = params.util;
+    var self = {}
+    self.update = update;
+    self.updateHTML = updateHTML;
+    return self;
 };
 });
 

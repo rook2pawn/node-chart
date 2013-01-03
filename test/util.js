@@ -1,4 +1,4 @@
-var lib = require('../lib');
+var lib = require('../lib/util');
 var test = require('tap').test;
 test('cropdata',function(t) {
     t.plan(3);
