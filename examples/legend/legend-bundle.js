@@ -799,6 +799,40 @@ var getDateString = function(date) {
     
     return date.getHours() % 12 + ':' + minutes + ':' + seconds; 
 };
+exports.rangeY = function(list) {
+    var minY = undefined;
+    var maxY = undefined;
+    for (var i = 0; i < list.length; i++) {
+        Hash(list[i]).filter(function(val,key) { return (key !== 'date') }).forEach(function(val,key) {
+            if (minY == undefined) 
+                minY = val;
+            if (maxY == undefined)
+                maxY = val;
+            if (val < minY)
+                minY = val;
+            if (val > maxY)
+                maxY = val;
+        });
+    }
+    var spread = undefined;
+    if ((minY!== undefined) && (maxY !== undefined)) {
+        spread = maxY - minY;
+    }
+    // shift is the amount any value in the interval needs to be shifted by to fall with the interval [0,spread]
+    var shift = undefined;
+    if ((minY < 0) && (maxY >= 0)) {
+        shift = Math.abs(minY);
+    }
+    if ((minY < 0) && (maxY < 0)) {
+        shift = Math.abs(maxY) + Math.abs(minY);
+    }
+    if (minY > 0) {
+        shift = -minY;
+    }
+    if (minY == 0) 
+        shift = 0;
+    return {min:minY,max:maxY,spread:spread,shift:shift}
+};
 exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
     // draw vertical grid
     ctx.fillStyle = '#FFF';
@@ -821,7 +855,11 @@ exports.draw = function (params) {
     var buffer = params.buffer;
     var bufferctx = params.bufferctx;
     var yaxises = params.yaxises;
+
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
+    var range = exports.rangeY(datatodisplay);
+
+    console.log(range);
     Hash(yaxises)
         .filter(function(obj) {
             return (obj.display && obj.display === true)
@@ -830,20 +868,29 @@ exports.draw = function (params) {
             // draw lines
             bufferctx.strokeStyle = colorToString(yaxis.color);
             datatodisplay.forEach(function(data,idx) {
+                var yval = 0;
+                if (range.spread !== 0) {
+                    yval = ((data[key] + range.shift) / range.spread) * buffer.height;
+                }
                 if (idx === 0) {
                     bufferctx.beginPath();
-                    bufferctx.moveTo(startx+idx*spacing,buffer.height - data[key]);
-                } 
-                bufferctx.lineTo(startx+(idx*spacing),buffer.height - data[key]);
+                    bufferctx.moveTo(startx+idx*spacing,buffer.height - yval);
+                } else {
+                    bufferctx.lineTo(startx+(idx*spacing),buffer.height - yval);
+                }
                 if (idx == (datatodisplay.length -1)) {
                     bufferctx.stroke();
                 }
             },this); 
             // draw dots
             datatodisplay.forEach(function(data,idx) {
+                var yval = 0;
+                if (range.spread !== 0) {
+                    yval = ((data[key] + range.shift) / range.spread) * buffer.height;
+                }
                 drawDot({
                     x:startx+(idx*spacing),
-                    y:buffer.height - data[key], 
+                    y:buffer.height - yval, 
                     radius:3,
                     ctx:bufferctx,
                     color:yaxis.color
@@ -1479,8 +1526,8 @@ var updateHTML = function(params) {
             $('#'+legendid).click(function() {
                 var legendname = rack.get(legendid.slice(1));
                 axishash[legendname].display = !axishash[legendname].display; // toggle boolean
-                util.redraw({yaxises:axishash});  
                 $(this).find('input[type="checkbox"]').attr('checked',axishash[legendname].display);
+                util.redraw({yaxises:axishash});  
             });
         }
     },this);
@@ -2186,7 +2233,7 @@ $(window).ready(function() {
     chart.series(datasource);
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));
-    var height = 400;
+    var height = 100;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);
         var b = Math.floor(Math.random()*height);

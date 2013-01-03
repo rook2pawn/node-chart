@@ -1,5 +1,11 @@
 var lib = require('../lib/util');
 var test = require('tap').test;
+test('rangeY',function(t) {
+    t.plan(1);
+    var list = [{a:3,b:9},{a:-2,b:5}];
+    var range = lib.rangeY(list);
+    t.deepEqual(range,{min:-2,max:9,spread:11,shift:2}); 
+});
 test('cropdata',function(t) {
     t.plan(3);
     var x = [1,2,3,4,5,6];

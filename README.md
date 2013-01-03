@@ -52,6 +52,14 @@ Legend is automatically created with the data that is sent.
 To visualize and interact with a legend, use the .legend callback
 
 
+legend.css
+==========
+
+    <link type='text/css' rel='stylesheet' href='legend.css' />
+
+Also in the root directory of this package is a file called legend.css that you should include.
+
+
 Labels go with the value
 ------------------------
 

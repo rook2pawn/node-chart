@@ -6,7 +6,7 @@ $(window).ready(function() {
     chart.series(datasource);
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));
-    var height = 400;
+    var height = 100;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);
         var b = Math.floor(Math.random()*height);
