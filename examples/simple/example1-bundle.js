@@ -712,6 +712,9 @@ exports.setSource = function(source) {
     $(this.buffer[id]).css('position','absolute');
     $(this.canvas).before(this.buffer[id]);
     var onDataGraph = function(data) {
+        // timestamp
+        data.date = new Date();
+
         if (source.dataset === undefined)
             source.dataset = [];
         source.dataset.push(data); 
@@ -727,8 +730,9 @@ exports.setSource = function(source) {
 
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);    
+
         util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
-        util.drawVerticalGrid(datatodisplay.length,this.ctx,spacing,startx,this.canvas.height);
+        util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
         util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
     };
     source.on('data',onDataGraph.bind(this));
@@ -781,14 +785,31 @@ exports.drawHorizontalGrid = function(width,height,ctx ){
         ctx.stroke();
     }
 }
-exports.drawVerticalGrid = function(numlines,ctx,spacing,startx,height) {
+var getDateString = function(date) {
+    var pad = function(str) {
+        if (str.length == 1) 
+            return '0'.concat(str)
+        if (str.length === 0) 
+            return '00'
+        else 
+            return str
+    };  
+    var seconds = pad(date.getSeconds());
+    var minutes = pad(date.getMinutes());
+    
+    return date.getHours() % 12 + ':' + minutes + ':' + seconds; 
+};
+exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
     // draw vertical grid
-    for (var i = 0; i < numlines;i++) {
+    ctx.fillStyle = '#FFF';
+    for (var i = 0; i < datatodisplay.length;i++) {
         ctx.strokeStyle = 'rgba(255,255,255,0.5)';
         ctx.beginPath();
         ctx.moveTo(startx+i*spacing,0);
         ctx.lineTo(startx+i*spacing,height);
         ctx.stroke();
+        var datestring = getDateString(datatodisplay[i].date);
+        ctx.fillText(datestring,startx+i*spacing,height);
     }
 };
 var lastsavedparams = {};
@@ -1409,8 +1430,9 @@ forEach(objectKeys(Traverse.prototype), function (key) {
 });
 
 require.define("/lib/legend.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
-var nextcolor = mrcolor();
+var Hash = require('hashish');
 var hat = require('hat');
+var nextcolor = mrcolor();
 var rack = hat.rack(128,10,2);
 
 var util = undefined;
@@ -1422,18 +1444,23 @@ var colorToString = function(color) {
 };
 var update = function(list) {
     list.forEach(function(data) {
-        Object.keys(data).forEach(function(key) {
-            if (axishash[key] === undefined) {
-                var color = nextcolor().rgb();
-                axishash[key] = {
-                    color:color,
-                    newarrival:true,
-                    display:true
-                };
-            } else {
-                axishash[key].newarrival = false;
-            }
-        });
+        Hash(data)
+            .filter(function(obj,key) {
+                return key !== 'date'
+            })
+            .forEach(function(value,key) {
+                if (axishash[key] === undefined) {
+                    var color = nextcolor().rgb();
+                    axishash[key] = {
+                        color:color,
+                        newarrival:true,
+                        display:true
+                    };
+                } else {
+                    axishash[key].newarrival = false;
+                }
+            })
+        ;
     });
     return axishash;
 };
