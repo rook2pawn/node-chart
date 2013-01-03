@@ -674,7 +674,7 @@ var todiv = function(el) {
     },this);
 };
 var legend = function(el) {
-    this.legend = el; 
+    this.legend_el = el; 
     var jq_el = $(el);
     jq_el.css('width','300px');
     jq_el.css('background-color','black');
@@ -725,8 +725,8 @@ exports.setSource = function(source) {
         var spacing = util.getSpacing(windowsize,this.canvas.width);
 
         var yaxises = legend.update(datatodisplay);
-        if (this.legend !== undefined) 
-            legend.updateHTML({el:this.legend});
+        if (this.legend_el !== undefined) 
+            legend.updateHTML({el:this.legend_el});
 
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);    

@@ -28,7 +28,7 @@ var todiv = function(el) {
     },this);
 };
 var legend = function(el) {
-    this.legend = el; 
+    this.legend_el = el; 
     var jq_el = $(el);
     jq_el.css('width','300px');
     jq_el.css('background-color','black');

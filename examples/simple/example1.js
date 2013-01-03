@@ -8,9 +8,11 @@ $(window).ready(function() {
     chart.series(datasource2);
     chart.to(document.getElementById('mycanvas'));
     setInterval(function() {
-        datasource.emit('data',Math.floor(Math.random()*100));
+        var val = Math.floor(Math.random()*100);
+        datasource.emit('data',{y:val});
     },1000);
     setInterval(function() {
-        datasource2.emit('data',Math.floor(Math.random()*40+60));
+        var val = Math.floor(Math.random()*40+60);
+        datasource2.emit('data',{y2:val});
     },3000);
 });
