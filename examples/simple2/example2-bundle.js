@@ -645,6 +645,7 @@ EventEmitter.prototype.listeners = function(type) {
 require.define("/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js"}});
 
 require.define("/index.js",function(require,module,exports,__dirname,__filename,process){var lib = require('./lib');
+var interaction = require('./lib/interaction');
 var hat = require('hat');
 var rack = hat.rack();
 
@@ -663,6 +664,13 @@ var to = function(el) {
     // wrap canvas in a div, set this.canvas and this.ctx
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
+    
+    $(this.interaction).css('position','absolute');
+    this.interaction.width = el.width; 
+    this.interaction.height = el.height;
+    $(el).before(this.interaction);
+    // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
+    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({canvas:this.canvas,ctx:this.ctx,interaction:this.interaction,interactionctx:this.interactionctx}));
 };
 var todiv = function(el) {
     this.div = el;
@@ -689,6 +697,8 @@ var chart = function() {
     this.toDiv = todiv;
     this.series = series;
     this.legend = legend;
+    this.interaction = document.createElement('canvas');
+    this.interactionctx = this.interaction.getContext('2d');
 };
 exports.Chart = chart;
 });
@@ -699,6 +709,7 @@ var legend = require('./legend')({util:util});
 exports.setCanvas = function(el,that) {
     that.canvas = el;
     var wrappingDiv = document.createElement('div');
+    wrappingDiv.id = 'chartWrappingDiv';
     wrappingDiv.height = that.canvas.height;
     $(that.canvas).wrap(wrappingDiv);
     that.ctx = el.getContext('2d');
@@ -858,8 +869,6 @@ exports.draw = function (params) {
 
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
     var range = exports.rangeY(datatodisplay);
-
-    console.log(range);
     Hash(yaxises)
         .filter(function(obj) {
             return (obj.display && obj.display === true)
@@ -869,8 +878,9 @@ exports.draw = function (params) {
             bufferctx.strokeStyle = colorToString(yaxis.color);
             datatodisplay.forEach(function(data,idx) {
                 var yval = 0;
+                var ratio = (data[key] + range.shift) / range.spread;
                 if (range.spread !== 0) {
-                    yval = ((data[key] + range.shift) / range.spread) * buffer.height;
+                    yval = ratio * buffer.height;
                 }
                 if (idx === 0) {
                     bufferctx.beginPath();
@@ -2222,6 +2232,19 @@ hat.rack = function (bits, base, expandBy) {
     fn.bits = bits || 128;
     fn.base = base || 16;
     return fn;
+};
+});
+
+require.define("/lib/interaction.js",function(require,module,exports,__dirname,__filename,process){exports.mousemove = function(ev) {
+    var offset = $('#chartWrappingDiv').offset();
+    var x = ev.pageX - offset.left;
+    var y = ev.pageY - offset.top;
+    this.interactionctx.strokeStyle = '#FFF';
+    this.interactionctx.clearRect(0,0,this.interaction.width,this.interaction.height);
+    this.interactionctx.beginPath();
+    this.interactionctx.moveTo(x,this.canvas.height);
+    this.interactionctx.lineTo(x,0);
+    this.interactionctx.stroke();
 };
 });
 
