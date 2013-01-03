@@ -1474,12 +1474,13 @@ var updateHTML = function(params) {
         if (axishash[axis].newarrival === true) {
             var legendid = '_'+rack(axis);
             $(el)
-                .append('<div class="legend" id="'+legendid+'"><div class="axisname">' + axis + '</div><hr style="border:thin solid '+colorToString(axishash[axis].color)+'" class="legendline" /></div>')
+                .append('<div class="legend" id="'+legendid+'"><input type=checkbox checked></input><div class="axisname">' + axis + '</div><hr style="border:thin solid '+colorToString(axishash[axis].color)+'" class="legendline" /></div>')
                 .css('font-family','sans-serif');
             $('#'+legendid).click(function() {
                 var legendname = rack.get(legendid.slice(1));
                 axishash[legendname].display = !axishash[legendname].display; // toggle boolean
                 util.redraw({yaxises:axishash});  
+                $(this).find('input[type="checkbox"]').attr('checked',axishash[legendname].display);
             });
         }
     },this);
