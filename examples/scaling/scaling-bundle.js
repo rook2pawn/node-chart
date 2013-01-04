@@ -736,7 +736,7 @@ exports.setSource = function(source) {
         // timestamp
         data.date = new Date();
 
-        if (source.dataset === undefined)
+        if ((source.dataset === undefined) || (flags && (flags.multiple == true) && (flags.clear && flags.clear == true)))
             source.dataset = [];
         source.dataset.push(data); 
 
