@@ -12,7 +12,7 @@ $(window).ready(function() {
         if ((values1.length > 0) && (values2.length > 0)) {
             var v1 = values1.shift();
             var v2 = values2.shift();
-            datasource.emit('data',{higher:v1,lower:v2});
+            datasource.emit('data',{higher:v1,lower:v2},{multiple:true});
         }
     },1000);
 });

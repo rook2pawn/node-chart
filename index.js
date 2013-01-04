@@ -24,7 +24,7 @@ var to = function(el) {
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({canvas:this.canvas,ctx:this.ctx,interaction:this.interaction,interactionctx:this.interactionctx}));
+    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx}));
 };
 var todiv = function(el) {
     this.div = el;
@@ -42,6 +42,7 @@ var legend = function(el) {
     jq_el.css('background-color','black');
     jq_el.css('cursor','pointer');
     jq_el.css('color','#FFF');
+    legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var chart = function() {
     this.buffer = {};

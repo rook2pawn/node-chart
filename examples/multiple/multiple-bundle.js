@@ -2412,7 +2412,7 @@ require.define("/lib/interaction.js",function(require,module,exports,__dirname,_
 };
 });
 
-require.define("/examples/scaling/scaling.js",function(require,module,exports,__dirname,__filename,process){var ee = require('events').EventEmitter;
+require.define("/examples/multiple/multiple.js",function(require,module,exports,__dirname,__filename,process){var ee = require('events').EventEmitter;
 var nodechart = require('../../index.js');
 var datasource = new ee;
 $(window).ready(function() {
@@ -2426,10 +2426,10 @@ $(window).ready(function() {
         if ((values1.length > 0) && (values2.length > 0)) {
             var v1 = values1.shift();
             var v2 = values2.shift();
-            datasource.emit('data',{higher:v1,lower:v2});
+            datasource.emit('data',{higher:v1,lower:v2},{multiple:true});
         }
     },1000);
 });
 });
-require("/examples/scaling/scaling.js");
+require("/examples/multiple/multiple.js");
 })();

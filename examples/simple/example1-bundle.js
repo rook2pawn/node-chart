@@ -670,7 +670,7 @@ var to = function(el) {
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({canvas:this.canvas,ctx:this.ctx,interaction:this.interaction,interactionctx:this.interactionctx}));
+    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx}));
 };
 var todiv = function(el) {
     this.div = el;
@@ -688,6 +688,7 @@ var legend = function(el) {
     jq_el.css('background-color','black');
     jq_el.css('cursor','pointer');
     jq_el.css('color','#FFF');
+    legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var chart = function() {
     this.buffer = {};
@@ -704,11 +705,17 @@ exports.Chart = chart;
 });
 
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
+var Hash = require('hashish');
 var legend = require('./legend')({util:util});
 
 exports.setCanvas = function(el,that) {
     that.canvas = el;
+    // transfer inline style to wrapping div
+    var style = $(el).attr('style');
     var wrappingDiv = document.createElement('div');
+    $(wrappingDiv).attr('style',style);
+    $(el).removeAttr('style');
+
     wrappingDiv.id = 'chartWrappingDiv';
     wrappingDiv.height = that.canvas.height;
     $(that.canvas).wrap(wrappingDiv);
@@ -716,13 +723,16 @@ exports.setCanvas = function(el,that) {
     that.ctx.fillStyle = '#000';
     that.ctx.fillRect(0,0,that.canvas.width,that.canvas.height);
 };
+exports.legendClear = function() {
+    legend.clear(this.legend_el);
+};
 exports.setSource = function(source) {
     var id = source.id;    
     this.buffer[id].width = this.canvas.width;
     this.buffer[id].height = this.canvas.height;
     $(this.buffer[id]).css('position','absolute');
     $(this.canvas).before(this.buffer[id]);
-    var onDataGraph = function(data) {
+    var onDataGraph = function(data,flags) {
         // timestamp
         data.date = new Date();
 
@@ -742,9 +752,21 @@ exports.setSource = function(source) {
         this.ctx.fillStyle = '#000';
         this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);    
 
-        util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
-        util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
-        util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
+        if (flags && flags.multiple && (flags.multiple === true)) {
+            Hash(yaxises).forEach(function(axis,key) {
+                axis.range = util.rangeY(datatodisplay,key); 
+            });    
+            util.drawYaxisMultiple(this.canvas,this.ctx,yaxises);
+            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
+            util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
+            util.draw_multiple({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
+        } else {
+            var range = util.rangeY(datatodisplay) 
+            util.drawYaxis(this.canvas,this.ctx,range);
+            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
+            util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
+            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
+        }
     };
     source.on('data',onDataGraph.bind(this));
 };
@@ -810,11 +832,19 @@ var getDateString = function(date) {
     
     return date.getHours() % 12 + ':' + minutes + ':' + seconds; 
 };
-exports.rangeY = function(list) {
+// if specialkey is defined, then we only look at members of list are specialkey
+// i.e. list = [{foo:3,bar:9},{foo:4,bar:19}] rangeY(list,'foo'), gets range for just foo.
+exports.rangeY = function(list,specialkey) {
     var minY = undefined;
     var maxY = undefined;
     for (var i = 0; i < list.length; i++) {
-        Hash(list[i]).filter(function(val,key) { return (key !== 'date') }).forEach(function(val,key) {
+        Hash(list[i])
+            .filter(function(val,key) { 
+                if (specialkey !== undefined) 
+                    return (key == specialkey) 
+                return (key !== 'date')
+             })
+            .forEach(function(val,key) {
             if (minY == undefined) 
                 minY = val;
             if (maxY == undefined)
@@ -843,6 +873,68 @@ exports.rangeY = function(list) {
     if (minY == 0) 
         shift = 0;
     return {min:minY,max:maxY,spread:spread,shift:shift}
+};
+var tick = function() {
+    var dash = function(ctx,x,y,offset,value) {
+        ctx.strokeStyle = '#FFF';
+        ctx.beginPath()
+        ctx.moveTo(x-offset,y)
+        ctx.lineTo(x+offset,y);
+        ctx.stroke();
+        ctx.fillText(value,x+offset,y);
+    }
+    var large = function(ctx,x,y,value) {
+        dash(ctx,x,y,6,value);
+    }
+    var small = function(ctx,x,y,value) {
+        dash(ctx,x,y,2,value);
+    }
+    return {
+        large: large,
+        small: small
+    }
+};
+exports.drawYaxis = function(canvas,ctx,range) {
+    ctx.fillStyle = '#FFF';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(range.min,5,canvas.height);
+    ctx.fillText(range.max,5,10);
+    ctx.strokeStyle = '#FFF';
+    ctx.beginPath();
+    ctx.moveTo(5,canvas.height);
+    ctx.lineTo(5,0);
+    ctx.stroke();
+    var majordivisions = 4;
+    var step = range.spread / majordivisions;
+    for (var i = 0; i < majordivisions; i++) {
+        var ticky = (canvas.height) - ((i / majordivisions) * canvas.height);
+        var value = range.min + (i*step);
+        tick().large(ctx,5,ticky,value);
+    }
+};
+exports.drawYaxisMultiple = function(canvas,ctx,yaxises) { 
+    var idx = 0;
+    Hash(yaxises).forEach(function(axis,key) {
+        var x = 5 + (35*idx);
+        ctx.fillStyle = '#FFF';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(axis.range.min,x,canvas.height);
+        ctx.fillText(axis.range.max,x,10);
+        ctx.strokeStyle = colorToString(axis.color);
+        ctx.beginPath();
+        ctx.moveTo(x,canvas.height);
+        ctx.lineTo(x,0);
+        ctx.stroke();
+
+        var majordivisions = 4;
+        var step = axis.range.spread / majordivisions;
+        for (var i = 0; i < majordivisions; i++) {
+            var ticky = (canvas.height) - ((i / majordivisions) * canvas.height);
+            var value = axis.range.min + (i*step);
+            tick().large(ctx,x,ticky,value);
+        }
+        idx++;
+    });
 };
 exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
     // draw vertical grid
@@ -912,6 +1004,73 @@ exports.draw = function (params) {
 exports.redraw = function(params) {
     lastsavedparams.yaxises = params.yaxises;
     exports.draw(lastsavedparams);
+};
+
+
+
+// completely parallel implementation for multiple y-axises.
+// diff log
+// changed functions/variables to _multiple
+// commented out portions of code are there to indicate the strikethrus from the single axis
+
+var lastsavedparams_multiple = {};
+exports.draw_multiple = function (params) {
+    lastsavedparams_multiple = params;
+    var datatodisplay = params.datatodisplay;
+    var startx = params.startx;
+    var spacing = params.spacing;
+    var buffer = params.buffer;
+    var bufferctx = params.bufferctx;
+    var yaxises = params.yaxises;
+
+    bufferctx.clearRect(0,0,buffer.width,buffer.height);    
+
+// commmented out because range now comes on the axis
+//    var range = exports.rangeY(datatodisplay);
+    Hash(yaxises)
+        .filter(function(obj) {
+            return (obj.display && obj.display === true)
+        })
+        .forEach(function(yaxis,key) {
+            // draw lines
+            bufferctx.strokeStyle = colorToString(yaxis.color);
+            datatodisplay.forEach(function(data,idx) {
+                var yval = 0;
+//                var ratio = (data[key] + range.shift) / range.spread;
+                var ratio = (data[key] + yaxis.range.shift) / yaxis.range.spread;
+                if (yaxis.range.spread !== 0) {
+                    yval = ratio * buffer.height;
+                }
+                if (idx === 0) {
+                    bufferctx.beginPath();
+                    bufferctx.moveTo(startx+idx*spacing,buffer.height - yval);
+                } else {
+                    bufferctx.lineTo(startx+(idx*spacing),buffer.height - yval);
+                }
+                if (idx == (datatodisplay.length -1)) {
+                    bufferctx.stroke();
+                }
+            },this); 
+            // draw dots
+            datatodisplay.forEach(function(data,idx) {
+                var yval = 0;
+                if (yaxis.range.spread !== 0) {
+                    yval = ((data[key] + yaxis.range.shift) / yaxis.range.spread) * buffer.height;
+                }
+                drawDot({
+                    x:startx+(idx*spacing),
+                    y:buffer.height - yval, 
+                    radius:3,
+                    ctx:bufferctx,
+                    color:yaxis.color
+                });
+            },this);
+        })
+    ;
+};
+exports.redraw_multiple = function(params) {
+    lastsavedparams_multiple.yaxises = params.yaxises;
+    exports.draw_multiple(lastsavedparams_multiple);
 };
 });
 
@@ -1521,12 +1680,16 @@ var update = function(list) {
     });
     return axishash;
 };
+var clear = function(legend_el) {
+    axishash = {};
+    $(legend_el).empty();   
+};
 var updateHTML = function(params) {
     if (params.el === undefined) {
         return;
     }
     var el = params.el;
-    $(this.legend).css('height',Object.keys(axishash).length * 30);
+//    $(this.legend).css('height',Object.keys(axishash).length * 30);
     Object.keys(axishash).forEach(function(axis) {
         if (axishash[axis].newarrival === true) {
             var legendid = '_'+rack(axis);
@@ -1548,6 +1711,7 @@ exports = module.exports = function(params) {
     var self = {}
     self.update = update;
     self.updateHTML = updateHTML;
+    self.clear = clear;
     return self;
 };
 });
@@ -2242,7 +2406,7 @@ require.define("/lib/interaction.js",function(require,module,exports,__dirname,_
     this.interactionctx.strokeStyle = '#FFF';
     this.interactionctx.clearRect(0,0,this.interaction.width,this.interaction.height);
     this.interactionctx.beginPath();
-    this.interactionctx.moveTo(x,this.canvas.height);
+    this.interactionctx.moveTo(x,this.interaction.height);
     this.interactionctx.lineTo(x,0);
     this.interactionctx.stroke();
 };

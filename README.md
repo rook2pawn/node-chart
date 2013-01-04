@@ -33,6 +33,15 @@ Multiple Data sources
     // or
     chart.series(d1,d2);
 
+Multiple Y-Axises
+=================
+
+To have the data you emit treated as separate y-axises with different scaling, simply
+pass a second object {multiple:true} in your emit
+
+    datasource.emit('data',{stockPrice:235,temperature:88},{multiple:true});
+
+
 chart.series
 ============
 
