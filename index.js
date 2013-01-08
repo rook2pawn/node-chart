@@ -18,13 +18,12 @@ var to = function(el) {
     // wrap canvas in a div, set this.canvas and this.ctx
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
-    
     $(this.interaction).css('position','absolute');
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx}));
+    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx,sources:this.sources}));
 };
 var todiv = function(el) {
     this.div = el;

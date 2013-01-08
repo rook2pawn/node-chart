@@ -664,13 +664,12 @@ var to = function(el) {
     // wrap canvas in a div, set this.canvas and this.ctx
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
-    
     $(this.interaction).css('position','absolute');
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx}));
+    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx,sources:this.sources}));
 };
 var todiv = function(el) {
     this.div = el;
@@ -736,8 +735,10 @@ exports.setSource = function(source) {
         // timestamp
         data.date = new Date();
 
-        if ((source.dataset === undefined) || (flags && (flags.multiple == true) && (flags.clear && flags.clear == true)))
+        if ((source.dataset === undefined) || (flags && (flags.multiple == true) && (flags.clear && flags.clear == true))) {
             source.dataset = [];
+            
+        }
         source.dataset.push(data); 
 
         var windowsize = source.windowsize || data.windowsize || 10;
@@ -766,6 +767,8 @@ exports.setSource = function(source) {
             util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
             util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
             util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
+    
+            source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises});
         }
     };
     source.on('data',onDataGraph.bind(this));
@@ -950,6 +953,34 @@ exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
     }
 };
 var lastsavedparams = {};
+exports.getDisplayPoints = function(params) {
+    var datatodisplay = params.datatodisplay;
+    var startx = params.startx;
+    var spacing = params.spacing;
+    var height = params.height;
+    var yaxises = params.yaxises;
+    var range = exports.rangeY(datatodisplay);
+    var displayPoints = {};
+    Hash(yaxises)
+        .filter(function(obj) {
+            return (obj.display && obj.display === true)
+        })
+        .forEach(function(yaxis,key) {
+            displayPoints[key] = {};
+            displayPoints[key].yaxis = yaxis;
+            displayPoints[key].list = [];
+            datatodisplay.forEach(function(data,idx) {
+                var yval = 0;
+                if (range.spread !== 0) {
+                    yval = ((data[key] + range.shift) / range.spread) * height;
+                }
+                var y = height - yval;
+                displayPoints[key].list.push({x:startx+(idx*spacing),y:y});
+            },this);
+        })
+    ;
+    return displayPoints;
+};
 exports.draw = function (params) {
     lastsavedparams = params;
     var datatodisplay = params.datatodisplay;
@@ -2399,7 +2430,33 @@ hat.rack = function (bits, base, expandBy) {
 };
 });
 
-require.define("/lib/interaction.js",function(require,module,exports,__dirname,__filename,process){exports.mousemove = function(ev) {
+require.define("/lib/interaction.js",function(require,module,exports,__dirname,__filename,process){//var Hash = require('hashish');
+
+
+var colorToString = function(color) {
+    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
+};
+// get left and right neighbors of x
+exports.getNeighbors = function(x,list) {
+    var left = undefined;
+    var right = undefined;
+    for (var i = 0; i < list.length; i++) {
+        var point = list[i];
+        if (point.x <= x) 
+            left = list[i];
+        if (point.x > x)
+            right = list[i];
+        if (right !== undefined) 
+            break;
+    }
+    
+    return {left:left,right:right}
+};
+exports.equationY = function(point1,point2,x) {
+    var m = (point2.y - point1.y) / (point2.x - point1.x);
+    return (m * (x - point1.x)) + point1.y
+}
+exports.mousemove = function(ev) {
     var offset = $('#chartWrappingDiv').offset();
     var x = ev.pageX - offset.left;
     var y = ev.pageY - offset.top;
@@ -2409,6 +2466,28 @@ require.define("/lib/interaction.js",function(require,module,exports,__dirname,_
     this.interactionctx.moveTo(x,this.interaction.height);
     this.interactionctx.lineTo(x,0);
     this.interactionctx.stroke();
+    
+    this.sources.forEach(function(source) {
+        var datahash = source.displayData;
+        if (datahash !== undefined) {
+            var that = this;
+            Object.keys(datahash).forEach(function(key) {
+                var val = datahash[key];
+                var neighbors = exports.getNeighbors(x,val.list);
+                if ((neighbors.left !== undefined) && (neighbors.right !== undefined)) {
+                    var intersectY = exports.equationY(neighbors.left,neighbors.right,x); 
+                    this.interactionctx.beginPath();
+                    this.interactionctx.fillStyle = '#FFFF00';
+
+                    this.interactionctx.strokeStyle = '#FF0000';
+//                    this.interactionctx.strokeStyle = colorToString(val.yaxis.color);
+                    this.interactionctx.arc(x, intersectY,6, 0, Math.PI*2, false);
+                    this.interactionctx.fill();
+                    this.interactionctx.stroke();
+                }
+            },this);
+        }
+    },this);
 };
 });
 
