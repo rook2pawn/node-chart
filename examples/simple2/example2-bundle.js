@@ -672,6 +672,7 @@ var to = function(el) {
     var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
     lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
+    $('#chartWrappingDiv').mouseout(interaction.stop);
     
 };
 var todiv = function(el) {
@@ -2489,10 +2490,10 @@ var drawIntersections = function(params) {
                 if ((neighbors.left !== undefined) && (neighbors.right !== undefined)) {
                     var intersectY = equationY(neighbors.left,neighbors.right,x); 
                     ctx.beginPath();
-                    ctx.fillStyle = '#FFFF00';
-                    ctx.strokeStyle = '#FF0000';
-//                  ctx.strokeStyle = colorToString(val.yaxis.color);
-                    ctx.arc(x, intersectY,6, 0, Math.PI*2, false);
+                    var color = colorToString(val.yaxis.color);
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#FFFFFF';
+                    ctx.arc(x, intersectY,4, 0, Math.PI*2, false);
                     ctx.fill();
                     ctx.stroke();
                 }
@@ -2501,6 +2502,7 @@ var drawIntersections = function(params) {
     });
 };
 var mousemove = function(ev) {
+    this.mouseisout = false;
     var offset = $('#chartWrappingDiv').offset();
     var x = ev.pageX - offset.left;
     var y = ev.pageY - offset.top;
@@ -2508,16 +2510,31 @@ var mousemove = function(ev) {
     this.lastx = x; 
     drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
     drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
+    this.isCleared = false;
 };
 
 var redraw = function() {
+    if (this.mouseisout === true) {
+        if (this.isCleared === false) {
+            this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+            this.isCleared = true;
+        }
+        return;
+    }
     if (this.lastx !== undefined) {
         var x = this.lastx;
         drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
         drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
+        this.isCleared = false;
     } 
 };
+var stop = function() {
+    this.mouseisout = true;
+}
+
 var interaction = function (params) {
+    this.isCleared = false;
+    this.mouseisout = false;
 
     this.lastx = undefined;
    
@@ -2534,6 +2551,7 @@ var interaction = function (params) {
     this.sources = params.sources;
 
     this.redraw = redraw.bind(this);
+    this.stop = stop.bind(this);
 };
 exports = module.exports = interaction;
 });

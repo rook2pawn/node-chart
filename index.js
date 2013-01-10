@@ -26,6 +26,7 @@ var to = function(el) {
     var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
     lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
+    $('#chartWrappingDiv').mouseout(interaction.stop);
     
 };
 var todiv = function(el) {
