@@ -716,7 +716,7 @@ var config = {
     padding : {
         left : 10,
         top : 20,
-        bottom : 20
+        bottom : 30
     },
     axispadding : {
         left : 50,  // yaxis
@@ -730,6 +730,7 @@ exports.displayConfig = function(params) {
 };
 exports.setInteraction = function(obj) {
     interaction = obj;
+    interaction.config = config;
 }
 exports.setCanvas = function(el,that) {
     that.canvas = el;
@@ -792,6 +793,7 @@ exports.setSource = function(source) {
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
             util.drawXaxis(datatodisplay,this.ctx,spacing,startx,this.canvas.height,this.canvas.width,config);
             util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config});
+            util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height});
     
             source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises,config:config});
         }
@@ -972,6 +974,12 @@ exports.drawYaxisMultiple = function(canvas,ctx,yaxises) {
         idx++;
     });
 };
+exports.clip = function(params) {
+    var ctx = params.ctx;
+    var height = params.height;
+    var config = params.config;
+    ctx.clearRect(0,0,config.axispadding.left,height);
+};
 exports.drawXaxis = function(datatodisplay,ctx,spacing,startx,height,width,config) {
     // draw x-axis
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
@@ -988,7 +996,7 @@ exports.drawXaxis = function(datatodisplay,ctx,spacing,startx,height,width,confi
         ctx.lineTo(startx+i*spacing,height);
         ctx.stroke();
         var datestring = getDateString(datatodisplay[i].date);
-        ctx.fillText(datestring,startx+i*spacing,height);
+        ctx.fillText(datestring,startx+i*spacing,height-5);
     }
 };
 var lastsavedparams = {};
@@ -2543,6 +2551,9 @@ var mousemove = function(ev) {
     var x = ev.pageX - offset.left;
     var y = ev.pageY - offset.top;
     
+    if (x < this.config.axispadding.left)
+        return
+    
     this.lastx = x; 
     drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
     drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
@@ -2588,6 +2599,7 @@ var interaction = function (params) {
 
     this.redraw = redraw.bind(this);
     this.stop = stop.bind(this);
+    this.config = undefined;
 };
 exports = module.exports = interaction;
 });

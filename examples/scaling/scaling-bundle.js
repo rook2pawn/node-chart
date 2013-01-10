@@ -716,7 +716,7 @@ var config = {
     padding : {
         left : 10,
         top : 20,
-        bottom : 20
+        bottom : 30
     },
     axispadding : {
         left : 50,  // yaxis
@@ -988,7 +988,7 @@ exports.drawXaxis = function(datatodisplay,ctx,spacing,startx,height,width,confi
         ctx.lineTo(startx+i*spacing,height);
         ctx.stroke();
         var datestring = getDateString(datatodisplay[i].date);
-        ctx.fillText(datestring,startx+i*spacing,height);
+        ctx.fillText(datestring,startx+i*spacing,height-5);
     }
 };
 var lastsavedparams = {};
