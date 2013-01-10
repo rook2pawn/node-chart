@@ -712,6 +712,22 @@ var Hash = require('hashish');
 var legend = require('./legend')({util:util});
 var interaction = undefined;
 
+var config = {
+    padding : {
+        left : 10,
+        top : 20,
+        bottom : 20
+    },
+    axispadding : {
+        left : 50,  // yaxis
+        bottom : 20 // xaxis
+    }
+};
+exports.displayConfig = function(params) {
+    if (params !== undefined) {
+        Hash(config).update(params);
+    }
+};
 exports.setInteraction = function(obj) {
     interaction = obj;
 }
@@ -765,18 +781,19 @@ exports.setSource = function(source) {
             Hash(yaxises).forEach(function(axis,key) {
                 axis.range = util.rangeY(datatodisplay,key); 
             });    
-            util.drawYaxisMultiple(this.canvas,this.ctx,yaxises);
-            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
-            util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
+            util.drawYaxisMultiple(this.canvas,this.ctx,yaxises,config);
+//            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
+//            util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
+            
             util.draw_multiple({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
         } else {
             var range = util.rangeY(datatodisplay) 
-            util.drawYaxis(this.canvas,this.ctx,range);
-            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
-            util.drawVerticalGrid(datatodisplay,this.ctx,spacing,startx,this.canvas.height);
-            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
+            util.drawYaxis(this.canvas,this.ctx,range,config);
+//            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
+            util.drawXaxis(datatodisplay,this.ctx,spacing,startx,this.canvas.height,this.canvas.width,config);
+            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config});
     
-            source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises});
+            source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises,config:config});
         }
     
         if (interaction !== undefined) {
@@ -850,6 +867,10 @@ var getDateString = function(date) {
 // if specialkey is defined, then we only look at members of list are specialkey
 // i.e. list = [{foo:3,bar:9},{foo:4,bar:19}] rangeY(list,'foo'), gets range for just foo.
 exports.rangeY = function(list,specialkey) {
+    // % to top pad so the "peak" isn't at the top of the viewport, but we allow some extra space for better visualization
+//    var padding = 0.10; // 0.10 = 10%;
+    var padding = 0;
+
     var minY = undefined;
     var maxY = undefined;
     for (var i = 0; i < list.length; i++) {
@@ -870,6 +891,7 @@ exports.rangeY = function(list,specialkey) {
                 maxY = val;
         });
     }
+    maxY = (1 + padding)*maxY;
     var spread = undefined;
     if ((minY!== undefined) && (maxY !== undefined)) {
         spread = maxY - minY;
@@ -891,12 +913,13 @@ exports.rangeY = function(list,specialkey) {
 };
 var tick = function() {
     var dash = function(ctx,x,y,offset,value) {
+        ctx.fillStyle = '#FFF';
         ctx.strokeStyle = '#FFF';
         ctx.beginPath()
         ctx.moveTo(x-offset,y)
         ctx.lineTo(x+offset,y);
         ctx.stroke();
-        ctx.fillText(value,x+offset,y);
+        ctx.fillText(value.toFixed(2),x-40,y+3);
     }
     var large = function(ctx,x,y,value) {
         dash(ctx,x,y,6,value);
@@ -909,22 +932,20 @@ var tick = function() {
         small: small
     }
 };
-exports.drawYaxis = function(canvas,ctx,range) {
-    ctx.fillStyle = '#FFF';
-    ctx.font = '10px sans-serif';
-    ctx.fillText(range.min,5,canvas.height);
-    ctx.fillText(range.max,5,10);
+exports.drawYaxis = function(canvas,ctx,range,config) {
+    var availableHeight = canvas.height - config.padding.top - config.padding.bottom;
     ctx.strokeStyle = '#FFF';
     ctx.beginPath();
-    ctx.moveTo(5,canvas.height);
-    ctx.lineTo(5,0);
+    ctx.moveTo(config.axispadding.left,canvas.height-config.padding.bottom);
+    ctx.lineTo(config.axispadding.left,config.padding.top);
     ctx.stroke();
     var majordivisions = 4;
     var step = range.spread / majordivisions;
-    for (var i = 0; i < majordivisions; i++) {
-        var ticky = (canvas.height) - ((i / majordivisions) * canvas.height);
+    for (var i = 0; i <= majordivisions; i++) {
+        var ticky = (availableHeight) - ((i / majordivisions) * availableHeight);
+        ticky += config.padding.top;
         var value = range.min + (i*step);
-        tick().large(ctx,5,ticky,value);
+        tick().large(ctx,config.axispadding.left,ticky,value);
     }
 };
 exports.drawYaxisMultiple = function(canvas,ctx,yaxises) { 
@@ -933,8 +954,8 @@ exports.drawYaxisMultiple = function(canvas,ctx,yaxises) {
         var x = 5 + (35*idx);
         ctx.fillStyle = '#FFF';
         ctx.font = '10px sans-serif';
-        ctx.fillText(axis.range.min,x,canvas.height);
-        ctx.fillText(axis.range.max,x,10);
+        ctx.fillText(axis.range.min.toFixed(2),x,canvas.height);
+        ctx.fillText(axis.range.max.toFixed(2),x,10);
         ctx.strokeStyle = colorToString(axis.color);
         ctx.beginPath();
         ctx.moveTo(x,canvas.height);
@@ -951,7 +972,13 @@ exports.drawYaxisMultiple = function(canvas,ctx,yaxises) {
         idx++;
     });
 };
-exports.drawVerticalGrid = function(datatodisplay,ctx,spacing,startx,height) {
+exports.drawXaxis = function(datatodisplay,ctx,spacing,startx,height,width,config) {
+    // draw x-axis
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath();
+    ctx.moveTo(0,height - config.padding.bottom);
+    ctx.lineTo(width,height - config.padding.bottom);
+    ctx.stroke();
     // draw vertical grid
     ctx.fillStyle = '#FFF';
     for (var i = 0; i < datatodisplay.length;i++) {
@@ -972,6 +999,7 @@ exports.getDisplayPoints = function(params) {
     var height = params.height;
     var yaxises = params.yaxises;
     var range = exports.rangeY(datatodisplay);
+    var config = params.config;
     var displayPoints = {};
     Hash(yaxises)
         .filter(function(obj) {
@@ -983,11 +1011,13 @@ exports.getDisplayPoints = function(params) {
             displayPoints[key].list = [];
             datatodisplay.forEach(function(data,idx) {
                 var yval = 0;
+                var ratio = (data[key] + range.shift) / range.spread;
+                var availableHeight = height - config.padding.top - config.padding.bottom;
                 if (range.spread !== 0) {
-                    yval = ((data[key] + range.shift) / range.spread) * height;
+                    yval = ratio * availableHeight;
                 }
-                var y = height - yval;
-                displayPoints[key].list.push({x:startx+(idx*spacing),y:y});
+                var displayY = height - yval - config.padding.bottom;
+                displayPoints[key].list.push({x:startx+(idx*spacing),y:displayY});
             },this);
         })
     ;
@@ -1001,6 +1031,7 @@ exports.draw = function (params) {
     var buffer = params.buffer;
     var bufferctx = params.bufferctx;
     var yaxises = params.yaxises;
+    var config = params.config;
 
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
     var range = exports.rangeY(datatodisplay);
@@ -1014,14 +1045,16 @@ exports.draw = function (params) {
             datatodisplay.forEach(function(data,idx) {
                 var yval = 0;
                 var ratio = (data[key] + range.shift) / range.spread;
+                var availableHeight = buffer.height - config.padding.top - config.padding.bottom;
                 if (range.spread !== 0) {
-                    yval = ratio * buffer.height;
+                    yval = ratio * availableHeight;
                 }
+                var displayY = buffer.height - yval - config.padding.bottom;
                 if (idx === 0) {
                     bufferctx.beginPath();
-                    bufferctx.moveTo(startx+idx*spacing,buffer.height - yval);
+                    bufferctx.moveTo(startx+idx*spacing,displayY);
                 } else {
-                    bufferctx.lineTo(startx+(idx*spacing),buffer.height - yval);
+                    bufferctx.lineTo(startx+(idx*spacing),displayY);
                 }
                 if (idx == (datatodisplay.length -1)) {
                     bufferctx.stroke();
@@ -1030,12 +1063,15 @@ exports.draw = function (params) {
             // draw dots
             datatodisplay.forEach(function(data,idx) {
                 var yval = 0;
+                var ratio = (data[key] + range.shift) / range.spread;
+                var availableHeight = buffer.height - config.padding.top - config.padding.bottom;
                 if (range.spread !== 0) {
-                    yval = ((data[key] + range.shift) / range.spread) * buffer.height;
+                    yval = ratio * availableHeight;
                 }
+                var displayY = buffer.height - yval - config.padding.bottom;
                 drawDot({
                     x:startx+(idx*spacing),
-                    y:buffer.height - yval, 
+                    y:displayY, 
                     radius:3,
                     ctx:bufferctx,
                     color:yaxis.color
@@ -2530,7 +2566,7 @@ var redraw = function() {
 };
 var stop = function() {
     this.mouseisout = true;
-}
+};
 
 var interaction = function (params) {
     this.isCleared = false;

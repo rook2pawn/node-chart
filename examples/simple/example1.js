@@ -5,8 +5,18 @@ $(window).ready(function() {
     var chart = new nodechart.Chart();
     chart.series(datasource);
     chart.to(document.getElementById('mycanvas'));
+    var up = false;
     setInterval(function() {
         var val = Math.floor(Math.random()*100);
         datasource.emit('data',{y:val});
+/*
+        if (!up) {
+            datasource.emit('data',{y:0});
+            up = true;
+        } else {
+            datasource.emit('data',{y:100});
+            up = false;
+        }
+*/
     },2500);
 });

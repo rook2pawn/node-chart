@@ -4,3 +4,5 @@ all:
 	browserify ./examples/legend/legend.js -o ./examples/legend/legend-bundle.js
 	browserify ./examples/scaling/scaling.js -o ./examples/scaling/scaling-bundle.js
 	browserify ./examples/multiple/multiple.js -o ./examples/multiple/multiple-bundle.js
+example1:
+	browserify ./examples/simple/example1.js -o ./examples/simple/example1-bundle.js
