@@ -24,7 +24,9 @@ var to = function(el) {
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
     var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
+    lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
+    
 };
 var todiv = function(el) {
     this.div = el;

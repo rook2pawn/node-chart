@@ -670,7 +670,9 @@ var to = function(el) {
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
     var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
+    lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
+    
 };
 var todiv = function(el) {
     this.div = el;
@@ -707,7 +709,11 @@ exports.Chart = chart;
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
 var Hash = require('hashish');
 var legend = require('./legend')({util:util});
+var interaction = undefined;
 
+exports.setInteraction = function(obj) {
+    interaction = obj;
+}
 exports.setCanvas = function(el,that) {
     that.canvas = el;
     // transfer inline style to wrapping div
@@ -771,6 +777,10 @@ exports.setSource = function(source) {
     
             source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises});
         }
+    
+        if (interaction !== undefined) {
+            interaction.redraw();
+        }        
     };
     source.on('data',onDataGraph.bind(this));
 };
@@ -2495,11 +2505,22 @@ var mousemove = function(ev) {
     var x = ev.pageX - offset.left;
     var y = ev.pageY - offset.top;
     
+    this.lastx = x; 
     drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
     drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
 };
 
+var redraw = function() {
+    if (this.lastx !== undefined) {
+        var x = this.lastx;
+        drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
+        drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
+    } 
+};
 var interaction = function (params) {
+
+    this.lastx = undefined;
+   
     // these are exported to this for the test scripts
     this.getNeighbors = getNeighbors;
     this.equationY = equationY;
@@ -2511,6 +2532,8 @@ var interaction = function (params) {
     this.ctx = params.ctx;
     this.canvas = params.canvas;    
     this.sources = params.sources;
+
+    this.redraw = redraw.bind(this);
 };
 exports = module.exports = interaction;
 });
