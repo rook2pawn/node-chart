@@ -789,11 +789,12 @@ exports.setSource = function(source) {
             util.draw_multiple({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
         } else {
             var range = util.rangeY(datatodisplay) 
-            util.drawYaxis(this.canvas,this.ctx,range,config);
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
             util.drawXaxis(datatodisplay,this.ctx,spacing,startx,this.canvas.height,this.canvas.width,config);
             util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config});
-            util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height});
+            util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear'});
+            util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill'});
+            util.drawYaxis(this.canvas,this.ctx,range,config);
     
             source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises,config:config});
         }
@@ -861,10 +862,13 @@ var getDateString = function(date) {
         else 
             return str
     };  
+    var hours = date.getHours() % 12;
+    if (hours === 0) 
+        hours = '12';
     var seconds = pad(date.getSeconds());
     var minutes = pad(date.getMinutes());
     
-    return date.getHours() % 12 + ':' + minutes + ':' + seconds; 
+    return hours + ':' + minutes + ':' + seconds; 
 };
 // if specialkey is defined, then we only look at members of list are specialkey
 // i.e. list = [{foo:3,bar:9},{foo:4,bar:19}] rangeY(list,'foo'), gets range for just foo.
@@ -978,7 +982,12 @@ exports.clip = function(params) {
     var ctx = params.ctx;
     var height = params.height;
     var config = params.config;
-    ctx.clearRect(0,0,config.axispadding.left,height);
+    if (params.type == 'clear') 
+        ctx.clearRect(0,0,config.axispadding.left,height);
+    if (params.type == 'fill') {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0,0,config.axispadding.left,height);
+    }
 };
 exports.drawXaxis = function(datatodisplay,ctx,spacing,startx,height,width,config) {
     // draw x-axis
@@ -2593,9 +2602,11 @@ var interaction = function (params) {
     this.drawIntersections = drawIntersections;
     this.mousemove = mousemove.bind(this);
 
-    this.ctx = params.ctx;
-    this.canvas = params.canvas;    
-    this.sources = params.sources;
+    if (params !== undefined) {
+        this.ctx = params.ctx;
+        this.canvas = params.canvas;    
+        this.sources = params.sources;
+    }
 
     this.redraw = redraw.bind(this);
     this.stop = stop.bind(this);
