@@ -2456,38 +2456,49 @@ exports.equationY = function(point1,point2,x) {
     var m = (point2.y - point1.y) / (point2.x - point1.x);
     return (m * (x - point1.x)) + point1.y
 }
-exports.mousemove = function(ev) {
-    var offset = $('#chartWrappingDiv').offset();
-    var x = ev.pageX - offset.left;
-    var y = ev.pageY - offset.top;
-    this.interactionctx.strokeStyle = '#FFF';
-    this.interactionctx.clearRect(0,0,this.interaction.width,this.interaction.height);
-    this.interactionctx.beginPath();
-    this.interactionctx.moveTo(x,this.interaction.height);
-    this.interactionctx.lineTo(x,0);
-    this.interactionctx.stroke();
-    
-    this.sources.forEach(function(source) {
+var drawVerticalLine = function(params) {
+    var ctx = params.ctx;
+    ctx.strokeStyle = '#FFF';
+    ctx.clearRect(0,0,params.width,params.height);
+    ctx.beginPath();
+    ctx.moveTo(params.x,params.height);
+    ctx.lineTo(params.x,0);
+    ctx.stroke();
+};
+var drawIntersections = function(params) {
+    var sources = params.sources;
+    var ctx = params.ctx;
+    var x = params.x;
+    sources.forEach(function(source) {
         var datahash = source.displayData;
         if (datahash !== undefined) {
-            var that = this;
             Object.keys(datahash).forEach(function(key) {
                 var val = datahash[key];
                 var neighbors = exports.getNeighbors(x,val.list);
                 if ((neighbors.left !== undefined) && (neighbors.right !== undefined)) {
                     var intersectY = exports.equationY(neighbors.left,neighbors.right,x); 
-                    this.interactionctx.beginPath();
-                    this.interactionctx.fillStyle = '#FFFF00';
-
-                    this.interactionctx.strokeStyle = '#FF0000';
-//                    this.interactionctx.strokeStyle = colorToString(val.yaxis.color);
-                    this.interactionctx.arc(x, intersectY,6, 0, Math.PI*2, false);
-                    this.interactionctx.fill();
-                    this.interactionctx.stroke();
+                    ctx.beginPath();
+                    ctx.fillStyle = '#FFFF00';
+                    ctx.strokeStyle = '#FF0000';
+//                  ctx.strokeStyle = colorToString(val.yaxis.color);
+                    ctx.arc(x, intersectY,6, 0, Math.PI*2, false);
+                    ctx.fill();
+                    ctx.stroke();
                 }
-            },this);
+            });
         }
-    },this);
+    });
+};
+exports.drawVerticalLine = drawVerticalLine;
+exports.drawIntersections = drawIntersections;
+exports.mousemove = function(ev) {
+    var offset = $('#chartWrappingDiv').offset();
+    var x = ev.pageX - offset.left;
+    var y = ev.pageY - offset.top;
+    
+    drawVerticalLine({ctx:this.interactionctx,height:this.interaction.height,width:this.interaction.width,x:x});
+    drawIntersections({ctx:this.interactionctx,sources:this.sources,x:x});
+        
 };
 });
 
