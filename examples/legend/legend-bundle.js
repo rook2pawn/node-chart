@@ -645,7 +645,7 @@ EventEmitter.prototype.listeners = function(type) {
 require.define("/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js"}});
 
 require.define("/index.js",function(require,module,exports,__dirname,__filename,process){var lib = require('./lib');
-var interaction = require('./lib/interaction');
+var Interaction = require('./lib/interaction');
 var hat = require('hat');
 var rack = hat.rack();
 
@@ -669,7 +669,8 @@ var to = function(el) {
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx,sources:this.sources}));
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
+    $('#chartWrappingDiv').mousemove(interaction.mousemove);
 };
 var todiv = function(el) {
     this.div = el;
@@ -2437,7 +2438,7 @@ var colorToString = function(color) {
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
 // get left and right neighbors of x
-exports.getNeighbors = function(x,list) {
+var getNeighbors = function(x,list) {
     var left = undefined;
     var right = undefined;
     for (var i = 0; i < list.length; i++) {
@@ -2452,7 +2453,7 @@ exports.getNeighbors = function(x,list) {
     
     return {left:left,right:right}
 };
-exports.equationY = function(point1,point2,x) {
+var equationY = function(point1,point2,x) {
     var m = (point2.y - point1.y) / (point2.x - point1.x);
     return (m * (x - point1.x)) + point1.y
 }
@@ -2474,9 +2475,9 @@ var drawIntersections = function(params) {
         if (datahash !== undefined) {
             Object.keys(datahash).forEach(function(key) {
                 var val = datahash[key];
-                var neighbors = exports.getNeighbors(x,val.list);
+                var neighbors = getNeighbors(x,val.list);
                 if ((neighbors.left !== undefined) && (neighbors.right !== undefined)) {
-                    var intersectY = exports.equationY(neighbors.left,neighbors.right,x); 
+                    var intersectY = equationY(neighbors.left,neighbors.right,x); 
                     ctx.beginPath();
                     ctx.fillStyle = '#FFFF00';
                     ctx.strokeStyle = '#FF0000';
@@ -2489,17 +2490,29 @@ var drawIntersections = function(params) {
         }
     });
 };
-exports.drawVerticalLine = drawVerticalLine;
-exports.drawIntersections = drawIntersections;
-exports.mousemove = function(ev) {
+var mousemove = function(ev) {
     var offset = $('#chartWrappingDiv').offset();
     var x = ev.pageX - offset.left;
     var y = ev.pageY - offset.top;
     
-    drawVerticalLine({ctx:this.interactionctx,height:this.interaction.height,width:this.interaction.width,x:x});
-    drawIntersections({ctx:this.interactionctx,sources:this.sources,x:x});
-        
+    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
+    drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
 };
+
+var interaction = function (params) {
+    // these are exported to this for the test scripts
+    this.getNeighbors = getNeighbors;
+    this.equationY = equationY;
+
+    this.drawVerticalLine = drawVerticalLine;
+    this.drawIntersections = drawIntersections;
+    this.mousemove = mousemove.bind(this);
+
+    this.ctx = params.ctx;
+    this.canvas = params.canvas;    
+    this.sources = params.sources;
+};
+exports = module.exports = interaction;
 });
 
 require.define("/examples/legend/legend.js",function(require,module,exports,__dirname,__filename,process){var ee = require('events').EventEmitter;

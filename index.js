@@ -1,5 +1,5 @@
 var lib = require('./lib');
-var interaction = require('./lib/interaction');
+var Interaction = require('./lib/interaction');
 var hat = require('hat');
 var rack = hat.rack();
 
@@ -23,7 +23,8 @@ var to = function(el) {
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    $('#chartWrappingDiv').mousemove(interaction.mousemove.bind({interaction:this.interaction,interactionctx:this.interactionctx,sources:this.sources}));
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
+    $('#chartWrappingDiv').mousemove(interaction.mousemove);
 };
 var todiv = function(el) {
     this.div = el;
