@@ -704,7 +704,7 @@ var chart = function() {
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
 };
-exports.Chart = chart;
+exports = module.exports = chart;
 });
 
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
@@ -2621,7 +2621,7 @@ var datasource = new ee;
 $(window).ready(function() {
     var values1 = [500,492,488,440,400,390,420,390,350,200,200,100,96,94,95,92,80,81,50,49,48,47,44];
     var values2 = [1,2,2,3,3,4,4,3,3,4,6,7,6,5,5,5,4,3,3,2,2,1,1];
-    var chart = new nodechart.Chart();
+    var chart = new nodechart;
     chart.series(datasource);
     chart.to(document.getElementById('mycanvas'));
     chart.legend(document.getElementById('mylegend'));

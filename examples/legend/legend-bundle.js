@@ -704,7 +704,7 @@ var chart = function() {
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
 };
-exports.Chart = chart;
+exports = module.exports = chart;
 });
 
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
@@ -2619,7 +2619,7 @@ require.define("/examples/legend/legend.js",function(require,module,exports,__di
 var nodechart = require('../../index.js');
 var datasource = new ee;
 $(window).ready(function() {
-    var chart = new nodechart.Chart();
+    var chart = new nodechart;
     chart.series(datasource);
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));

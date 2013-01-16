@@ -5,8 +5,8 @@
     padding:0;
     line-height:10px;
     font-size:10px;
-    min-width:50px;
     display:inline-block;
+    margin-right:5px;
 }
 .legend div.axisname:hover {
     text-decoration:underline;

@@ -6,7 +6,8 @@ Time Series Charting Canvas API
 Use
 ===
 
-    var chart = new Chart();
+    var Chart = require('chart');
+    var chart = new Chart;
     var ee = require('events').EventEmitter;
     var datasource = new ee;
 

@@ -58,4 +58,4 @@ var chart = function() {
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
 };
-exports.Chart = chart;
+exports = module.exports = chart;
