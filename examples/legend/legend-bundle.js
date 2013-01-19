@@ -669,7 +669,7 @@ var to = function(el) {
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color.interactionline});
     lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
     $('#chartWrappingDiv').mouseout(interaction.stop);
@@ -703,6 +703,8 @@ var chart = function() {
     this.legend = legend;
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
+    this.bgcolor = undefined;
+    this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000'};
 };
 exports = module.exports = chart;
 });
@@ -744,7 +746,7 @@ exports.setCanvas = function(el,that) {
     wrappingDiv.height = that.canvas.height;
     $(that.canvas).wrap(wrappingDiv);
     that.ctx = el.getContext('2d');
-    that.ctx.fillStyle = '#000';
+    that.ctx.fillStyle = that.color.bg;
     that.ctx.fillRect(0,0,that.canvas.width,that.canvas.height);
 };
 exports.legendClear = function() {
@@ -775,7 +777,7 @@ exports.setSource = function(source) {
         if (this.legend_el !== undefined) 
             legend.updateHTML({el:this.legend_el});
 
-        this.ctx.fillStyle = '#000';
+        this.ctx.fillStyle = this.color.bg;
         this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);    
 
         if (flags && flags.multiple && (flags.multiple === true)) {
@@ -790,11 +792,11 @@ exports.setSource = function(source) {
         } else {
             var range = util.rangeY(datatodisplay) 
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
-            util.drawXaxis(datatodisplay,this.ctx,spacing,startx,this.canvas.height,this.canvas.width,config);
+            util.drawXaxis({datatodisplay:datatodisplay,ctx:this.ctx,spacing:spacing,startx:startx,height:this.canvas.height,width:this.canvas.width,config:config,gridcolor:this.color.grid,xlabel:this.color.xlabel,xline:this.color.xline});
             util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config});
-            util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear'});
-            util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill'});
-            util.drawYaxis(this.canvas,this.ctx,range,config);
+            util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear',clipcolor:this.color.bg});
+            util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill',clipcolor:this.color.bg});
+            util.drawYaxis({canvas:this.canvas,ctx:this.ctx,range:range,config:config,yline:this.color.yline,ylabel:this.color.ylabel});
     
             source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises,config:config});
         }
@@ -841,12 +843,13 @@ exports.drawDot = drawDot;
 exports.drawLine = function(params) {
     params.ctx.beginPath();
     params.ctx.arc(params.x, params.y, params.radius, 0, Math.PI*2, false);
+    params.ctx.strokeStyle = params.color;
     params.ctx.stroke();
 };
-exports.drawHorizontalGrid = function(width,height,ctx ){
+exports.drawHorizontalGrid = function(width,height,ctx,color){
     var heightchunks = Math.floor(height / 10);
     for (var i = 0; i < heightchunks; i++) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.strokeStyle = color;
         ctx.beginPath();
         ctx.moveTo(0,i*heightchunks);
         ctx.lineTo(width,i*heightchunks);
@@ -918,29 +921,36 @@ exports.rangeY = function(list,specialkey) {
     return {min:minY,max:maxY,spread:spread,shift:shift}
 };
 var tick = function() {
-    var dash = function(ctx,x,y,offset,value) {
-        ctx.fillStyle = '#FFF';
-        ctx.strokeStyle = '#FFF';
+    var dash = function(ctx,x,y,offset,value,linecolor,labelcolor) {
+        ctx.fillStyle = labelcolor;
+        ctx.strokeStyle = linecolor;
         ctx.beginPath()
         ctx.moveTo(x-offset,y)
         ctx.lineTo(x+offset,y);
         ctx.stroke();
         ctx.fillText(value.toFixed(2),x-40,y+3);
     }
-    var large = function(ctx,x,y,value) {
-        dash(ctx,x,y,6,value);
+    var large = function(ctx,x,y,value,linecolor,labelcolor) {
+        dash(ctx,x,y,6,value,linecolor,labelcolor);
     }
-    var small = function(ctx,x,y,value) {
-        dash(ctx,x,y,2,value);
+    var small = function(ctx,x,y,value,linecolor,labelcolor) {
+        dash(ctx,x,y,2,value,linecolor,labelcolor);
     }
     return {
         large: large,
         small: small
     }
 };
-exports.drawYaxis = function(canvas,ctx,range,config) {
+exports.drawYaxis = function(params) {
+    var canvas = params.canvas;
+    var ctx = params.ctx;
+    var range = params.range;
+    var config = params.config;
+    var yline = params.yline;
+    var ylabel = params.ylabel;
+    
     var availableHeight = canvas.height - config.padding.top - config.padding.bottom;
-    ctx.strokeStyle = '#FFF';
+    ctx.strokeStyle = yline;
     ctx.beginPath();
     ctx.moveTo(config.axispadding.left,canvas.height-config.padding.bottom);
     ctx.lineTo(config.axispadding.left,config.padding.top);
@@ -951,7 +961,7 @@ exports.drawYaxis = function(canvas,ctx,range,config) {
         var ticky = (availableHeight) - ((i / majordivisions) * availableHeight);
         ticky += config.padding.top;
         var value = range.min + (i*step);
-        tick().large(ctx,config.axispadding.left,ticky,value);
+        tick().large(ctx,config.axispadding.left,ticky,value,yline,ylabel);
     }
 };
 exports.drawYaxisMultiple = function(canvas,ctx,yaxises) { 
@@ -982,24 +992,36 @@ exports.clip = function(params) {
     var ctx = params.ctx;
     var height = params.height;
     var config = params.config;
+    var clipcolor = params.clipcolor;
     if (params.type == 'clear') 
         ctx.clearRect(0,0,config.axispadding.left,height);
     if (params.type == 'fill') {
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = clipcolor;
         ctx.fillRect(0,0,config.axispadding.left,height);
     }
 };
-exports.drawXaxis = function(datatodisplay,ctx,spacing,startx,height,width,config) {
+exports.drawXaxis = function(params) {
+    var datatodisplay = params.datatodisplay;
+    var ctx = params.ctx;
+    var spacing = params.spacing;
+    var startx = params.startx;
+    var height = params.height;
+    var width = params.width;
+    var config = params.config;
+    var gridcolor = params.gridcolor;
+    var xlabel = params.xlabel;
+    var xline = params.xline;
     // draw x-axis
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.strokeStyle = params.xline;
     ctx.beginPath();
     ctx.moveTo(0,height - config.padding.bottom);
     ctx.lineTo(width,height - config.padding.bottom);
     ctx.stroke();
     // draw vertical grid
-    ctx.fillStyle = '#FFF';
+    ctx.fillStyle = xlabel;
+    ctx.lineWidth = 1;
     for (var i = 0; i < datatodisplay.length;i++) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.strokeStyle = gridcolor;
         ctx.beginPath();
         ctx.moveTo(startx+i*spacing,0);
         ctx.lineTo(startx+i*spacing,height);
@@ -2523,7 +2545,8 @@ var equationY = function(point1,point2,x) {
 }
 var drawVerticalLine = function(params) {
     var ctx = params.ctx;
-    ctx.strokeStyle = '#FFF';
+    var color = params.color;
+    ctx.strokeStyle = color;
     ctx.clearRect(0,0,params.width,params.height);
     ctx.beginPath();
     ctx.moveTo(params.x,params.height);
@@ -2564,7 +2587,7 @@ var mousemove = function(ev) {
         return
     
     this.lastx = x; 
-    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
+    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x,color:this.color});
     drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
     this.isCleared = false;
 };
@@ -2579,7 +2602,7 @@ var redraw = function() {
     }
     if (this.lastx !== undefined) {
         var x = this.lastx;
-        drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x});
+        drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x,color:this.color});
         drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
         this.isCleared = false;
     } 
@@ -2611,6 +2634,7 @@ var interaction = function (params) {
     this.redraw = redraw.bind(this);
     this.stop = stop.bind(this);
     this.config = undefined;
+    this.color = params.color;
 };
 exports = module.exports = interaction;
 });

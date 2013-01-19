@@ -2,7 +2,7 @@
   "author": "David Wee <rook2pawn@gmail.com> (http://rook2pawn.com)",
   "name": "chart",
   "description": "event based time series charting API",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "homepage": "https://github.com/rook2pawn/node-chart",
   "keywords" : [
     "chart",

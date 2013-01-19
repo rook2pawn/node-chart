@@ -23,7 +23,7 @@ var to = function(el) {
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources});
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color.interactionline});
     lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
     $('#chartWrappingDiv').mouseout(interaction.stop);
@@ -57,5 +57,7 @@ var chart = function() {
     this.legend = legend;
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
+    this.bgcolor = undefined;
+    this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000'};
 };
 exports = module.exports = chart;

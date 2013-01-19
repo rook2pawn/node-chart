@@ -81,6 +81,18 @@ You can supply multiple labels
     datasorce1.emit('data',{'units sold':9.2})
     datasorce2.emit('data',{'current energy consumption':30})
 
+Colors
+======
+You can set the following colors. Defaults to below.
+
+    chart.color.grid = '#c9d6de';
+    chart.color.gridbg = '#FFF';
+    chart.color.gridxlabel = '#000';
+    chart.color.gridxline = '#000';
+    chart.color.gridylabel = '#000'
+    chart.color.gridyline = '#000';
+    chart.color.grid.interactionline = '#000';
+
 Tests
 =====
 
