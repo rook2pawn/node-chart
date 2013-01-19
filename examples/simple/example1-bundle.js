@@ -2546,11 +2546,16 @@ var equationY = function(point1,point2,x) {
 var drawVerticalLine = function(params) {
     var ctx = params.ctx;
     var color = params.color;
+    ctx.lineWidth = 1;
     ctx.strokeStyle = color;
     ctx.clearRect(0,0,params.width,params.height);
     ctx.beginPath();
-    ctx.moveTo(params.x,params.height);
-    ctx.lineTo(params.x,0);
+    var x = params.x;
+    if (params.x % 1 === 0) 
+        x += 0.5;
+    ctx.moveTo(x,params.height);
+    ctx.lineTo(x,0);
+    console.log(x);
     ctx.stroke();
 };
 var drawIntersections = function(params) {
@@ -2587,7 +2592,7 @@ var mousemove = function(ev) {
         return
     
     this.lastx = x; 
-    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x,color:this.color});
+    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x+0.5,color:this.color});
     drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
     this.isCleared = false;
 };
