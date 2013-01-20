@@ -16,7 +16,7 @@
   "main": "index.js",
   "dependencies": {
     "hat" :"",
-    "mrcolor" :"",
+    "mrcolor" :"https://github.com/rook2pawn/mrcolor/archive/master.tar.gz",
     "hashish" : ""
   },
   "devDependencies": {}

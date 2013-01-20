@@ -105,5 +105,4 @@ MISC
 ====
 
 Author: David Wee <rook2pawn@gmail.com>
-License: MIT
-Developed At : Malhar, Inc. <david@malhar-inc.com>
+License: MIT/X11
