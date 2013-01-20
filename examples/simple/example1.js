@@ -2,7 +2,13 @@ var ee = require('events').EventEmitter;
 var nodechart = require('../../index.js');
 var datasource = new ee;
 $(window).ready(function() {
+    var myform = $('#myform');
+    myform.change(function(ev) {
+        var rendermode = ev.target.value;
+        datasource.rendermode = rendermode;
+    }); 
     var chart = new nodechart;
+    datasource.rendermode = "line";
     chart.series(datasource);
     chart.to(document.getElementById('mycanvas'));
     var up = false;

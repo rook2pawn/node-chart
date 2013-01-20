@@ -59,5 +59,6 @@ var chart = function() {
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;
     this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000'};
+    this.rendermode = "line"; // linefill, line, bar 
 };
 exports = module.exports = chart;

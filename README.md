@@ -93,6 +93,19 @@ You can set the following colors. Defaults to below.
     chart.color.gridyline = '#000';
     chart.color.grid.interactionline = '#000';
 
+Render Modes
+============
+
+You can set the render modes any time, change them at any time like so:
+
+    chart.rendermode = "line"; // defaults to line, also can use "linefill", "bar"
+
+You can also set the rendermode from a specific event and it will take precedence.
+You can switch this at will.
+
+    datasource.rendermode = "linefill";
+
+
 Tests
 =====
 

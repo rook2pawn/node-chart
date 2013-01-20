@@ -705,6 +705,7 @@ var chart = function() {
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;
     this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000'};
+    this.rendermode = "line"; // linefill, line, bar 
 };
 exports = module.exports = chart;
 });
@@ -793,7 +794,7 @@ exports.setSource = function(source) {
             var range = util.rangeY(datatodisplay) 
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
             util.drawXaxis({datatodisplay:datatodisplay,ctx:this.ctx,spacing:spacing,startx:startx,height:this.canvas.height,width:this.canvas.width,config:config,gridcolor:this.color.grid,xlabel:this.color.xlabel,xline:this.color.xline});
-            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config});
+            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config,rendermode:source.rendermode || this.rendermode || "line"});
             util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear',clipcolor:this.color.bg});
             util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill',clipcolor:this.color.bg});
             util.drawYaxis({canvas:this.canvas,ctx:this.ctx,range:range,config:config,yline:this.color.yline,ylabel:this.color.ylabel});
@@ -810,6 +811,7 @@ exports.setSource = function(source) {
 });
 
 require.define("/lib/util.js",function(require,module,exports,__dirname,__filename,process){var Hash = require('hashish');
+var mr = require('mrcolor');
 
 var getSpacing = function(windowsize,canvaswidth) {
     return Math.floor(canvaswidth / (windowsize-1));
@@ -829,7 +831,8 @@ exports.cropData = function(list,windowsize) {
         return list
     else return list.slice(list.length - windowsize)
 };
-var colorToString = function(color) {
+var colorToString = function(colorobj) {
+    var color = colorobj.rgb();
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
 exports.colorToString = colorToString;
@@ -1071,6 +1074,7 @@ exports.draw = function (params) {
     var bufferctx = params.bufferctx;
     var yaxises = params.yaxises;
     var config = params.config;
+    var rendermode = params.rendermode;
 
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
     var range = exports.rangeY(datatodisplay);
@@ -1081,6 +1085,7 @@ exports.draw = function (params) {
         .forEach(function(yaxis,key) {
             // draw lines
             bufferctx.strokeStyle = colorToString(yaxis.color);
+            bufferctx.fillStyle = colorToString(mr.lighten(yaxis.color));
             datatodisplay.forEach(function(data,idx) {
                 var yval = 0;
                 var ratio = (data[key] + range.shift) / range.spread;
@@ -1089,14 +1094,33 @@ exports.draw = function (params) {
                     yval = ratio * availableHeight;
                 }
                 var displayY = buffer.height - yval - config.padding.bottom;
-                if (idx === 0) {
-                    bufferctx.beginPath();
-                    bufferctx.moveTo(startx+idx*spacing,displayY);
-                } else {
-                    bufferctx.lineTo(startx+(idx*spacing),displayY);
+
+                if (rendermode == 'line' || rendermode == 'linefill') {
+                    if (idx === 0) {
+                        bufferctx.beginPath();
+                        bufferctx.moveTo(startx+idx*spacing,displayY);
+                    } else {
+                        bufferctx.lineTo(startx+(idx*spacing),displayY);
+                    }
+                    if (idx == (datatodisplay.length -1)) {
+                        if (rendermode == 'linefill') {
+                            bufferctx.lineTo(startx+(idx*spacing),buffer.height-config.padding.bottom);
+                            bufferctx.lineTo(startx,buffer.height-config.padding.bottom);
+                            bufferctx.fill();
+                        }
+                        bufferctx.stroke();
+                    }
                 }
-                if (idx == (datatodisplay.length -1)) {
+                if (rendermode == 'bar') {
+                    bufferctx.beginPath();
+                    var centerx = startx + idx*spacing;
+                    bufferctx.moveTo(centerx-10,displayY);
+                    bufferctx.lineTo(centerx+10,displayY);
+                    bufferctx.lineTo(centerx+10,buffer.height-config.padding.bottom);
+                    bufferctx.lineTo(centerx-10,buffer.height-config.padding.bottom);
+                    bufferctx.lineTo(centerx-10,displayY);
                     bufferctx.stroke();
+                    bufferctx.fill();
                 }
             },this); 
             // draw dots
@@ -1763,77 +1787,6 @@ forEach(objectKeys(Traverse.prototype), function (key) {
 });
 });
 
-require.define("/lib/legend.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
-var Hash = require('hashish');
-var hat = require('hat');
-var nextcolor = mrcolor();
-var rack = hat.rack(128,10,2);
-
-var util = undefined;
-var axishash = {};
-// foreach key in data add to hash axises 
-// if new addition, create a color.
-var colorToString = function(color) {
-    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
-};
-var update = function(list) {
-    list.forEach(function(data) {
-        Hash(data)
-            .filter(function(obj,key) {
-                return key !== 'date'
-            })
-            .forEach(function(value,key) {
-                if (axishash[key] === undefined) {
-                    var color = nextcolor().rgb();
-                    axishash[key] = {
-                        color:color,
-                        newarrival:true,
-                        display:true
-                    };
-                } else {
-                    axishash[key].newarrival = false;
-                }
-            })
-        ;
-    });
-    return axishash;
-};
-var clear = function(legend_el) {
-    axishash = {};
-    $(legend_el).empty();   
-};
-var updateHTML = function(params) {
-    if (params.el === undefined) {
-        return;
-    }
-    var el = params.el;
-//    $(this.legend).css('height',Object.keys(axishash).length * 30);
-    Object.keys(axishash).forEach(function(axis) {
-        if (axishash[axis].newarrival === true) {
-            var legendid = '_'+rack(axis);
-            $(el)
-                .append('<div class="legend" id="'+legendid+'"><input type=checkbox checked></input><div class="axisname">' + axis + '</div><hr style="border:thin solid '+colorToString(axishash[axis].color)+'" class="legendline" /></div>')
-                .css('font-family','sans-serif');
-            $('#'+legendid).click(function() {
-                var legendname = rack.get(legendid.slice(1));
-                axishash[legendname].display = !axishash[legendname].display; // toggle boolean
-                $(this).find('input[type="checkbox"]').attr('checked',axishash[legendname].display);
-                util.redraw({yaxises:axishash});  
-            });
-        }
-    },this);
-};
-exports = module.exports = function(params) {
-    if (params !== undefined) 
-        util = params.util;
-    var self = {}
-    self.update = update;
-    self.updateHTML = updateHTML;
-    self.clear = clear;
-    return self;
-};
-});
-
 require.define("/node_modules/mrcolor/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js"}});
 
 require.define("/node_modules/mrcolor/index.js",function(require,module,exports,__dirname,__filename,process){var convert = require('color-convert');
@@ -1914,6 +1867,13 @@ mr.take = function (n) {
     }
     
     return res;
+};
+
+mr.lighten = function(color,by) {
+    var hsv = color.hsv().map(function(val,idx) {
+        return (idx == 1) ? (by || 0.2) * val : val
+    });
+    return mr.fromHSL.apply(undefined,convert.hsv2hsl(hsv));
 };
 });
 
@@ -2451,6 +2411,78 @@ for (var key in cssKeywords) {
 }
 });
 
+require.define("/lib/legend.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
+var Hash = require('hashish');
+var hat = require('hat');
+var nextcolor = mrcolor();
+var rack = hat.rack(128,10,2);
+
+var util = undefined;
+var axishash = {};
+// foreach key in data add to hash axises 
+// if new addition, create a color.
+var colorToString = function(colorobj) {
+    var color = colorobj.rgb();
+    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
+};
+var update = function(list) {
+    list.forEach(function(data) {
+        Hash(data)
+            .filter(function(obj,key) {
+                return key !== 'date'
+            })
+            .forEach(function(value,key) {
+                if (axishash[key] === undefined) {
+                    var color = nextcolor();
+                    axishash[key] = {
+                        color:color,
+                        newarrival:true,
+                        display:true
+                    };
+                } else {
+                    axishash[key].newarrival = false;
+                }
+            })
+        ;
+    });
+    return axishash;
+};
+var clear = function(legend_el) {
+    axishash = {};
+    $(legend_el).empty();   
+};
+var updateHTML = function(params) {
+    if (params.el === undefined) {
+        return;
+    }
+    var el = params.el;
+//    $(this.legend).css('height',Object.keys(axishash).length * 30);
+    Object.keys(axishash).forEach(function(axis) {
+        if (axishash[axis].newarrival === true) {
+            var legendid = '_'+rack(axis);
+            $(el)
+                .append('<div class="legend" id="'+legendid+'"><input type=checkbox checked></input><div class="axisname">' + axis + '</div><hr style="border:thin solid '+colorToString(axishash[axis].color)+'" class="legendline" /></div>')
+                .css('font-family','sans-serif');
+            $('#'+legendid).click(function() {
+                var legendname = rack.get(legendid.slice(1));
+                axishash[legendname].display = !axishash[legendname].display; // toggle boolean
+                $(this).find('input[type="checkbox"]').attr('checked',axishash[legendname].display);
+                util.redraw({yaxises:axishash});  
+            });
+        }
+    },this);
+};
+exports = module.exports = function(params) {
+    if (params !== undefined) 
+        util = params.util;
+    var self = {}
+    self.update = update;
+    self.updateHTML = updateHTML;
+    self.clear = clear;
+    return self;
+};
+});
+
 require.define("/node_modules/hat/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js"}});
 
 require.define("/node_modules/hat/index.js",function(require,module,exports,__dirname,__filename,process){var hat = module.exports = function (bits, base) {
@@ -2517,10 +2549,9 @@ hat.rack = function (bits, base, expandBy) {
 };
 });
 
-require.define("/lib/interaction.js",function(require,module,exports,__dirname,__filename,process){//var Hash = require('hashish');
-
-
-var colorToString = function(color) {
+require.define("/lib/interaction.js",function(require,module,exports,__dirname,__filename,process){
+var colorToString = function(colorobj) {
+    var color = colorobj.rgb();
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
 // get left and right neighbors of x
@@ -2555,7 +2586,6 @@ var drawVerticalLine = function(params) {
         x += 0.5;
     ctx.moveTo(x,params.height);
     ctx.lineTo(x,0);
-    console.log(x);
     ctx.stroke();
 };
 var drawIntersections = function(params) {
@@ -2639,7 +2669,7 @@ var interaction = function (params) {
     this.redraw = redraw.bind(this);
     this.stop = stop.bind(this);
     this.config = undefined;
-    this.color = params.color;
+    (params !== undefined) ? this.color = params.color : this.color = '#000';
 };
 exports = module.exports = interaction;
 });
@@ -2648,7 +2678,13 @@ require.define("/examples/simple/example1.js",function(require,module,exports,__
 var nodechart = require('../../index.js');
 var datasource = new ee;
 $(window).ready(function() {
+    var myform = $('#myform');
+    myform.change(function(ev) {
+        var rendermode = ev.target.value;
+        datasource.rendermode = rendermode;
+    }); 
     var chart = new nodechart;
+    datasource.rendermode = "line";
     chart.series(datasource);
     chart.to(document.getElementById('mycanvas'));
     var up = false;
