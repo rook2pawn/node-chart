@@ -704,7 +704,8 @@ var chart = function() {
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;
-    this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000'};
+    this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000',line:undefined};
+    this.rendermode = "line"; // linefill, line, bar 
 };
 exports = module.exports = chart;
 });
@@ -773,7 +774,7 @@ exports.setSource = function(source) {
         var startx = util.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
         var spacing = util.getSpacing(windowsize,this.canvas.width);
 
-        var yaxises = legend.update(datatodisplay);
+        var yaxises = legend.update(datatodisplay,this.color.line);
         if (this.legend_el !== undefined) 
             legend.updateHTML({el:this.legend_el});
 
@@ -793,7 +794,7 @@ exports.setSource = function(source) {
             var range = util.rangeY(datatodisplay) 
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
             util.drawXaxis({datatodisplay:datatodisplay,ctx:this.ctx,spacing:spacing,startx:startx,height:this.canvas.height,width:this.canvas.width,config:config,gridcolor:this.color.grid,xlabel:this.color.xlabel,xline:this.color.xline});
-            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config});
+            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config,rendermode:source.rendermode || this.rendermode || "line"});
             util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear',clipcolor:this.color.bg});
             util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill',clipcolor:this.color.bg});
             util.drawYaxis({canvas:this.canvas,ctx:this.ctx,range:range,config:config,yline:this.color.yline,ylabel:this.color.ylabel});
@@ -1073,6 +1074,7 @@ exports.draw = function (params) {
     var bufferctx = params.bufferctx;
     var yaxises = params.yaxises;
     var config = params.config;
+    var rendermode = params.rendermode;
 
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
     var range = exports.rangeY(datatodisplay);
@@ -1092,15 +1094,31 @@ exports.draw = function (params) {
                     yval = ratio * availableHeight;
                 }
                 var displayY = buffer.height - yval - config.padding.bottom;
-                if (idx === 0) {
-                    bufferctx.beginPath();
-                    bufferctx.moveTo(startx+idx*spacing,displayY);
-                } else {
-                    bufferctx.lineTo(startx+(idx*spacing),displayY);
+
+                if (rendermode == 'line' || rendermode == 'linefill') {
+                    if (idx === 0) {
+                        bufferctx.beginPath();
+                        bufferctx.moveTo(startx+idx*spacing,displayY);
+                    } else {
+                        bufferctx.lineTo(startx+(idx*spacing),displayY);
+                    }
+                    if (idx == (datatodisplay.length -1)) {
+                        if (rendermode == 'linefill') {
+                            bufferctx.lineTo(startx+(idx*spacing),buffer.height-config.padding.bottom);
+                            bufferctx.lineTo(startx,buffer.height-config.padding.bottom);
+                            bufferctx.fill();
+                        }
+                        bufferctx.stroke();
+                    }
                 }
-                if (idx == (datatodisplay.length -1)) {
-                    bufferctx.lineTo(startx+(idx*spacing),buffer.height-config.padding.bottom);
-                    bufferctx.lineTo(startx,buffer.height-config.padding.bottom);
+                if (rendermode == 'bar') {
+                    bufferctx.beginPath();
+                    var centerx = startx + idx*spacing;
+                    bufferctx.moveTo(centerx-10,displayY);
+                    bufferctx.lineTo(centerx+10,displayY);
+                    bufferctx.lineTo(centerx+10,buffer.height-config.padding.bottom);
+                    bufferctx.lineTo(centerx-10,buffer.height-config.padding.bottom);
+                    bufferctx.lineTo(centerx-10,displayY);
                     bufferctx.stroke();
                     bufferctx.fill();
                 }
@@ -1857,6 +1875,16 @@ mr.lighten = function(color,by) {
     });
     return mr.fromHSL.apply(undefined,convert.hsv2hsl(hsv));
 };
+
+mr.rgbhexToColorObj = function(color) {
+    var cutHex = function (h) {return (h.charAt(0)=="#") ? h.substring(1,7):h}
+    var hexToR = function (h) {return parseInt((cutHex(h)).substring(0,2),16)}
+    var hexToG = function (h) {return parseInt((cutHex(h)).substring(2,4),16)}
+    var hexToB = function (h) {return parseInt((cutHex(h)).substring(4,6),16)}
+   
+    var rgb = [hexToR(color),hexToG(color),hexToB(color)]; 
+    return mr.fromHSL.apply(undefined,convert.rgb2hsl(rgb))
+}
 });
 
 require.define("/node_modules/mrcolor/node_modules/color-convert/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./index"}});
@@ -2407,15 +2435,21 @@ var colorToString = function(colorobj) {
     var color = colorobj.rgb();
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
-var update = function(list) {
+var update = function(list,linecolors) {
     list.forEach(function(data) {
+        var idx = 0;
         Hash(data)
             .filter(function(obj,key) {
                 return key !== 'date'
             })
             .forEach(function(value,key) {
                 if (axishash[key] === undefined) {
-                    var color = nextcolor();
+                    var color = undefined;
+                    if ((linecolors !== undefined) && (linecolors[idx] !== undefined)) 
+                        color = mrcolor.rgbhexToColorObj(linecolors[idx]);
+                    else 
+                        color = nextcolor();
+                    idx++;
                     axishash[key] = {
                         color:color,
                         newarrival:true,
@@ -2663,6 +2697,7 @@ $(window).ready(function() {
     var chart = new nodechart;
     chart.series(datasource);
     chart.to(document.getElementById('mycanvas'));
+    chart.color.line = ["#C45AEC","#C45AEC",undefined];
     var height = 400;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);

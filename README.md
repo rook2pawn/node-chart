@@ -83,6 +83,7 @@ You can supply multiple labels
 
 Colors
 ======
+
 You can set the following colors. Defaults to below.
 
     chart.color.grid = '#c9d6de';
@@ -92,6 +93,17 @@ You can set the following colors. Defaults to below.
     chart.color.gridylabel = '#000'
     chart.color.gridyline = '#000';
     chart.color.grid.interactionline = '#000';
+
+You can also create a preferred ordered set of colors for the lines.
+You must supply the lines in six digit RGB hexadecimal like so:
+
+    chart.color.line = ['#FF0000','#00FF'];
+
+Any colors you do not supply will be provided for.
+
+    chart.color.line = ['#FF0000',undefined,'#00FF'];
+    // will choose '#FFFF00' for the second element automatically.
+
 
 Render Modes
 ============

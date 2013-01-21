@@ -6,3 +6,5 @@ all:
 	browserify ./examples/multiple/multiple.js -o ./examples/multiple/multiple-bundle.js
 example1:
 	browserify ./examples/simple/example1.js -o ./examples/simple/example1-bundle.js
+example2:
+	browserify ./examples/simple2/example2.js -o ./examples/simple2/example2-bundle.js

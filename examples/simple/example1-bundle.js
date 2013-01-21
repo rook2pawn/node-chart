@@ -704,7 +704,7 @@ var chart = function() {
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;
-    this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000'};
+    this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000',line:undefined};
     this.rendermode = "line"; // linefill, line, bar 
 };
 exports = module.exports = chart;
@@ -774,7 +774,7 @@ exports.setSource = function(source) {
         var startx = util.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
         var spacing = util.getSpacing(windowsize,this.canvas.width);
 
-        var yaxises = legend.update(datatodisplay);
+        var yaxises = legend.update(datatodisplay,this.color.line);
         if (this.legend_el !== undefined) 
             legend.updateHTML({el:this.legend_el});
 
@@ -1875,6 +1875,10 @@ mr.lighten = function(color,by) {
     });
     return mr.fromHSL.apply(undefined,convert.hsv2hsl(hsv));
 };
+
+mr.rgbToColorObj = function(color) {
+    return mr.fromHSL.apply(undefined,convert.rgb2hsl(color))
+}
 });
 
 require.define("/node_modules/mrcolor/node_modules/color-convert/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"./index"}});
@@ -2425,15 +2429,21 @@ var colorToString = function(colorobj) {
     var color = colorobj.rgb();
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
-var update = function(list) {
+var update = function(list,linecolors) {
     list.forEach(function(data) {
+        var idx = 0;
         Hash(data)
             .filter(function(obj,key) {
                 return key !== 'date'
             })
             .forEach(function(value,key) {
                 if (axishash[key] === undefined) {
-                    var color = nextcolor();
+                    var color = undefined;
+                    if ((linecolors !== undefined) && (linecolors[idx] !== undefined)) 
+                        color = mrcolor.rgbToColorObj(linecolors[idx]);
+                    else 
+                        color = nextcolor();
+                    idx++;
                     axishash[key] = {
                         color:color,
                         newarrival:true,
