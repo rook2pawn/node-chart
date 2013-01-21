@@ -6,6 +6,7 @@ $(window).ready(function() {
     chart.series(datasource);
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));
+//    chart.color.legendbg = "#C45AEC";
     var height = 100;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);

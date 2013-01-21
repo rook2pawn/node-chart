@@ -104,6 +104,12 @@ Any colors you do not supply will be provided for.
     chart.color.line = ['#FF0000',undefined,'#00FF'];
     // will choose '#FFFF00' for the second element automatically.
 
+You can also set colors for the legend, through these CSS classes
+
+    div.legend {
+    }
+    div.legend div.axisname {
+    }
 
 Render Modes
 ============

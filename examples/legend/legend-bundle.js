@@ -688,9 +688,7 @@ var legend = function(el) {
     this.legend_el = el; 
     var jq_el = $(el);
     jq_el.css('width','300px');
-    jq_el.css('background-color','black');
     jq_el.css('cursor','pointer');
-    jq_el.css('color','#FFF');
     legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var chart = function() {
@@ -1876,8 +1874,14 @@ mr.lighten = function(color,by) {
     return mr.fromHSL.apply(undefined,convert.hsv2hsl(hsv));
 };
 
-mr.rgbToColorObj = function(color) {
-    return mr.fromHSL.apply(undefined,convert.rgb2hsl(color))
+mr.rgbhexToColorObj = function(color) {
+    var cutHex = function (h) {return (h.charAt(0)=="#") ? h.substring(1,7):h}
+    var hexToR = function (h) {return parseInt((cutHex(h)).substring(0,2),16)}
+    var hexToG = function (h) {return parseInt((cutHex(h)).substring(2,4),16)}
+    var hexToB = function (h) {return parseInt((cutHex(h)).substring(4,6),16)}
+   
+    var rgb = [hexToR(color),hexToG(color),hexToB(color)]; 
+    return mr.fromHSL.apply(undefined,convert.rgb2hsl(rgb))
 }
 });
 
@@ -2440,7 +2444,7 @@ var update = function(list,linecolors) {
                 if (axishash[key] === undefined) {
                     var color = undefined;
                     if ((linecolors !== undefined) && (linecolors[idx] !== undefined)) 
-                        color = mrcolor.rgbToColorObj(linecolors[idx]);
+                        color = mrcolor.rgbhexToColorObj(linecolors[idx]);
                     else 
                         color = nextcolor();
                     idx++;
@@ -2692,6 +2696,7 @@ $(window).ready(function() {
     chart.series(datasource);
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));
+//    chart.color.legendbg = "#C45AEC";
     var height = 100;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);
