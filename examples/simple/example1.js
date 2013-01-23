@@ -15,7 +15,6 @@ $(window).ready(function() {
     setInterval(function() {
         var val = Math.floor(Math.random()*100);
         datasource.emit('data',{y:val});
-        console.log(chart.inspect());
 /*
         if (!up) {
             datasource.emit('data',{y:0});

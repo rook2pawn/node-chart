@@ -790,15 +790,15 @@ exports.setSource = function(source) {
             
             util.draw_multiple({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises});
         } else {
-            var range = util.rangeY(datatodisplay) 
+            var range = util.filterDynamicRangeY(datatodisplay,yaxises);
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
             util.drawXaxis({datatodisplay:datatodisplay,ctx:this.ctx,spacing:spacing,startx:startx,height:this.canvas.height,width:this.canvas.width,config:config,gridcolor:this.color.grid,xlabel:this.color.xlabel,xline:this.color.xline});
-            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config,rendermode:source.rendermode || this.rendermode || "line"});
+            util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config,rendermode:source.rendermode || this.rendermode || "line", range:range});
             util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear',clipcolor:this.color.bg});
             util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill',clipcolor:this.color.bg});
             util.drawYaxis({canvas:this.canvas,ctx:this.ctx,range:range,config:config,yline:this.color.yline,ylabel:this.color.ylabel});
     
-            source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises,config:config});
+            source.displayData = util.getDisplayPoints({startx:startx,datatodisplay:datatodisplay,spacing:spacing,height:this.buffer[id].height,yaxises:yaxises,config:config,range:range});
         }
     
         if (interaction !== undefined) {
@@ -1039,7 +1039,7 @@ exports.getDisplayPoints = function(params) {
     var spacing = params.spacing;
     var height = params.height;
     var yaxises = params.yaxises;
-    var range = exports.rangeY(datatodisplay);
+    var range = params.range;
     var config = params.config;
     var displayPoints = {};
     Hash(yaxises)
@@ -1064,6 +1064,20 @@ exports.getDisplayPoints = function(params) {
     ;
     return displayPoints;
 };
+// filters datatodisplay for dyanmic ranges based on legend select/deselect
+exports.filterDynamicRangeY = function(datatodisplay,yaxises) {
+    var filtered_list = []; // specifically for dynamic ranges
+    for (var i = 0; i < datatodisplay.length; i++) {
+        var item = Hash(datatodisplay[i])
+        .filter(function(val,key) {
+            return (key == 'date') || (yaxises[key].display == true)
+        })
+        .end;
+        filtered_list.push(item);
+    }
+    var range = exports.rangeY(filtered_list);
+    return range;
+}
 exports.draw = function (params) {
     lastsavedparams = params;
     var datatodisplay = params.datatodisplay;
@@ -1076,7 +1090,8 @@ exports.draw = function (params) {
     var rendermode = params.rendermode;
 
     bufferctx.clearRect(0,0,buffer.width,buffer.height);    
-    var range = exports.rangeY(datatodisplay);
+    
+    var range = params.range;
     Hash(yaxises)
         .filter(function(obj) {
             return (obj.display && obj.display === true)
@@ -2701,7 +2716,7 @@ $(window).ready(function() {
     var height = 100;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);
-        var b = Math.floor(Math.random()*height);
+        var b = Math.floor(Math.random()*1000);
         var c = Math.floor(Math.random()*height);
         datasource.emit('data',{'andale mono':a,bauhaus:b,c:c});
     },1000);

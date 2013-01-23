@@ -10,7 +10,7 @@ $(window).ready(function() {
     var height = 100;
     setInterval(function() {
         var a = Math.floor(Math.random()*height);
-        var b = Math.floor(Math.random()*height);
+        var b = Math.floor(Math.random()*1000);
         var c = Math.floor(Math.random()*height);
         datasource.emit('data',{'andale mono':a,bauhaus:b,c:c});
     },1000);
