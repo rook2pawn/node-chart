@@ -2713,12 +2713,11 @@ $(window).ready(function() {
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));
 //    chart.color.legendbg = "#C45AEC";
-    var height = 100;
     setInterval(function() {
-        var a = Math.floor(Math.random()*height);
+        var a = Math.floor(Math.random()*30);
         var b = Math.floor(Math.random()*1000);
-        var c = Math.floor(Math.random()*height);
-        datasource.emit('data',{'andale mono':a,bauhaus:b,c:c});
+        var c = Math.floor(Math.random()*200);
+        datasource.emit('data',{'php value':a,'nodejs value':b, 'fortran value':c});
     },1000);
 });
 });
