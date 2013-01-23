@@ -670,12 +670,13 @@ var to = function(el) {
             that.currentdata = data;
         });
     },this);
+    // this.interaction refers to the element created during new Chart
     $(this.interaction).css('position','absolute');
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color.interactionline});
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color});
     lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
     $('#chartWrappingDiv').mouseout(interaction.stop);
@@ -2495,10 +2496,10 @@ var updateHTML = function(params) {
             $(el)
                 .append('<div class="legend" id="'+legendid+'"><input type=checkbox checked></input><div style="'+axisstring+'" class="axisname">' + axis + '</div><hr style="'+ legendlinestring+'" class="legendline" /></div>')
                 .css('font-family','sans-serif');
-            $('#'+legendid).click(function() {
+            $('#'+legendid+' input[type="checkbox"]').click(function() {
                 var legendname = rack.get(legendid.slice(1));
                 axishash[legendname].display = !axishash[legendname].display; // toggle boolean
-                $(this).find('input[type="checkbox"]').attr('checked',axishash[legendname].display);
+                $(this).attr('checked',axishash[legendname].display);
                 util.redraw({yaxises:axishash});  
             });
         }
@@ -2654,7 +2655,7 @@ var mousemove = function(ev) {
         return
     
     this.lastx = x; 
-    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x+0.5,color:this.color});
+    drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x+0.5,color:this.color.interactionline});
     drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
     this.isCleared = false;
 };
@@ -2669,7 +2670,7 @@ var redraw = function() {
     }
     if (this.lastx !== undefined) {
         var x = this.lastx;
-        drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x,color:this.color});
+        drawVerticalLine({ctx:this.ctx,height:this.canvas.height,width:this.canvas.width,x:x,color:this.color.interactionline});
         drawIntersections({ctx:this.ctx,sources:this.sources,x:x});
         this.isCleared = false;
     } 
@@ -2701,7 +2702,7 @@ var interaction = function (params) {
     this.redraw = redraw.bind(this);
     this.stop = stop.bind(this);
     this.config = undefined;
-    (params !== undefined) ? this.color = params.color : this.color = '#000';
+    this.color = params.color
 };
 exports = module.exports = interaction;
 });
