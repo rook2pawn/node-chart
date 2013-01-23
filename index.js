@@ -38,9 +38,6 @@ var to = function(el) {
 };
 var legend = function(el) {
     this.legend_el = el; 
-    var jq_el = $(el);
-    jq_el.css('width','300px');
-    jq_el.css('cursor','pointer');
     legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var inspect = function() {

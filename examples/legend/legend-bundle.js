@@ -684,9 +684,6 @@ var to = function(el) {
 };
 var legend = function(el) {
     this.legend_el = el; 
-    var jq_el = $(el);
-    jq_el.css('width','300px');
-    jq_el.css('cursor','pointer');
     legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var inspect = function() {
@@ -793,7 +790,7 @@ exports.setSource = function(source) {
         } else {
             var range = util.filterDynamicRangeY(datatodisplay,yaxises);
 //            util.drawHorizontalGrid(this.canvas.width,this.canvas.height,this.ctx);
-            util.drawXaxis({datatodisplay:datatodisplay,ctx:this.ctx,spacing:spacing,startx:startx,height:this.canvas.height,width:this.canvas.width,config:config,gridcolor:this.color.grid,xlabel:this.color.xlabel,xline:this.color.xline});
+            util.drawXaxis({datatodisplay:datatodisplay,ctx:this.ctx,spacing:spacing,startx:startx,height:this.canvas.height,width:this.canvas.width,config:config,gridcolor:this.color.grid,xlabel:this.color.xlabel,xline:this.color.xline,doVertGrid:true});
             util.draw({startx:startx,datatodisplay:datatodisplay,spacing:spacing,buffer:this.buffer[id],bufferctx:this.bufferctx[id],yaxises:yaxises,config:config,rendermode:source.rendermode || this.rendermode || "line", range:range});
             util.clip({ctx:this.bufferctx[id],config:config,height:this.buffer[id].height,type:'clear',clipcolor:this.color.bg});
             util.clip({ctx:this.ctx,config:config,height:this.canvas.height,type:'fill',clipcolor:this.color.bg});
@@ -831,9 +828,12 @@ exports.cropData = function(list,windowsize) {
         return list
     else return list.slice(list.length - windowsize)
 };
-var colorToString = function(colorobj) {
+var colorToString = function(colorobj,alpha) {
     var color = colorobj.rgb();
-    return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
+    if (alpha !== undefined)
+        return 'rgba('+color[0]+','+color[1]+','+color[2]+','+alpha+')';
+    else 
+        return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
 exports.colorToString = colorToString;
 var drawDot = function(params) {
@@ -1014,6 +1014,7 @@ exports.drawXaxis = function(params) {
     var gridcolor = params.gridcolor;
     var xlabel = params.xlabel;
     var xline = params.xline;
+    var doVertGrid = params.doVertGrid || false;
     // draw x-axis
     ctx.strokeStyle = params.xline;
     ctx.beginPath();
@@ -1021,16 +1022,20 @@ exports.drawXaxis = function(params) {
     ctx.lineTo(width,height - config.padding.bottom);
     ctx.stroke();
     // draw vertical grid
-    ctx.fillStyle = xlabel;
-    ctx.lineWidth = 1;
-    for (var i = 0; i < datatodisplay.length;i++) {
-        ctx.strokeStyle = gridcolor;
-        ctx.beginPath();
-        ctx.moveTo(startx+i*spacing,0);
-        ctx.lineTo(startx+i*spacing,height);
-        ctx.stroke();
-        var datestring = getDateString(datatodisplay[i].date);
-        ctx.fillText(datestring,startx+i*spacing,height-5);
+    if (doVertGrid === true) {
+        ctx.fillStyle = xlabel;
+        ctx.lineWidth = 1;
+        for (var i = 0; i < datatodisplay.length;i++) {
+            ctx.strokeStyle = gridcolor;
+            ctx.beginPath();
+            var x = startx+i*spacing;
+            x += 0.5;
+            ctx.moveTo(x,0);
+            ctx.lineTo(x,height);
+            ctx.stroke();
+            var datestring = getDateString(datatodisplay[i].date);
+            ctx.fillText(datestring,startx+i*spacing,height-5);
+        }
     }
 };
 var lastsavedparams = {};
@@ -1100,7 +1105,7 @@ exports.draw = function (params) {
         .forEach(function(yaxis,key) {
             // draw lines
             bufferctx.strokeStyle = colorToString(yaxis.color);
-            bufferctx.fillStyle = colorToString(mr.lighten(yaxis.color));
+            bufferctx.fillStyle = colorToString(mr.lighten(yaxis.color),0.5);
             datatodisplay.forEach(function(data,idx) {
                 var yval = 0;
                 var ratio = (data[key] + range.shift) / range.spread;
