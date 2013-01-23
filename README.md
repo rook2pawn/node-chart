@@ -123,6 +123,14 @@ You can switch this at will.
 
     datasource.rendermode = "linefill";
 
+MISC
+====
+
+chart.inspect
+=============
+
+chart.inspect() returns the current data passing through.
+
 
 Tests
 =====
