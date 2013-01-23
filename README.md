@@ -3,6 +3,8 @@ node-chart
 
 Time Series Charting Canvas API 
 
+[Example](http://rook2pawn.com)
+
 Use
 ===
 
