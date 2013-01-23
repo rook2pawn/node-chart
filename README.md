@@ -86,13 +86,13 @@ Colors
 
 You can set the following colors. Defaults to below.
 
+    chart.color.bg = '#FFF'; // the background color
     chart.color.grid = '#c9d6de'; // a pleasant grid
-    chart.color.gridbg = '#FFF'; // the background color
-    chart.color.gridxlabel = '#000'; // the color of the x-axis labels
-    chart.color.gridxline = '#000'; // the color the x-axis line
-    chart.color.gridylabel = '#000'
-    chart.color.gridyline = '#000';
-    chart.color.grid.interactionline = '#000';
+    chart.color.xlabel = '#000'; // the color of the x-axis labels
+    chart.color.xline = '#000'; // the color the x-axis line
+    chart.color.ylabel = '#000'
+    chart.color.yline = '#000';
+    chart.color.interactionline = '#000';
 
 You can also create a preferred ordered set of colors for the lines.
 You must supply the lines in six digit RGB hexadecimal like so:
