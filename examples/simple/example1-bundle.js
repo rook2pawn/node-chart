@@ -664,6 +664,12 @@ var to = function(el) {
     // wrap canvas in a div, set this.canvas and this.ctx
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
+    this.sources.forEach(function(source) {
+        var that = this;
+        source.on('data',function(data) {
+            that.currentdata = data;
+        });
+    },this);
     $(this.interaction).css('position','absolute');
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
@@ -675,15 +681,6 @@ var to = function(el) {
     $('#chartWrappingDiv').mouseout(interaction.stop);
     
 };
-var todiv = function(el) {
-    this.div = el;
-    this.sources.forEach(function(source) {
-        var put = function(data) {
-            this.div.innerHTML = data;
-        };
-        source.on('data',put.bind(this));
-    },this);
-};
 var legend = function(el) {
     this.legend_el = el; 
     var jq_el = $(el);
@@ -691,14 +688,18 @@ var legend = function(el) {
     jq_el.css('cursor','pointer');
     legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
+var inspect = function() {
+    return this.currentdata;
+};
 var chart = function() {
     this.buffer = {};
     this.bufferctx = {};
+    this.currentdata = undefined;
     this.sources = [];
     this.to = to;
-    this.toDiv = todiv;
     this.series = series;
     this.legend = legend;
+    this.inspect = inspect;
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;
@@ -2705,6 +2706,7 @@ $(window).ready(function() {
     setInterval(function() {
         var val = Math.floor(Math.random()*100);
         datasource.emit('data',{y:val});
+        console.log(chart.inspect());
 /*
         if (!up) {
             datasource.emit('data',{y:0});

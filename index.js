@@ -19,8 +19,9 @@ var to = function(el) {
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
     this.sources.forEach(function(source) {
+        var that = this;
         source.on('data',function(data) {
-            this.currentdata = data;
+            that.currentdata = data;
         });
     },this);
     $(this.interaction).css('position','absolute');
