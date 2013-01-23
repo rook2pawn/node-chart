@@ -24,12 +24,13 @@ var to = function(el) {
             that.currentdata = data;
         });
     },this);
+    // this.interaction refers to the element created during new Chart
     $(this.interaction).css('position','absolute');
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
     $(el).before(this.interaction);
     // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color.interactionline});
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color});
     lib.setInteraction(interaction);
     $('#chartWrappingDiv').mousemove(interaction.mousemove);
     $('#chartWrappingDiv').mouseout(interaction.stop);
