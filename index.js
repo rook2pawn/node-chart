@@ -57,5 +57,7 @@ var chart = function() {
     this.bgcolor = undefined;
     this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000',line:undefined};
     this.rendermode = "line"; // linefill, line, bar 
+    
+    this.custom = {boundaries : {left:undefined,right:undefined}, cropFn : undefined};
 };
 exports = module.exports = chart;
