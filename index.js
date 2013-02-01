@@ -59,5 +59,6 @@ var chart = function() {
     this.rendermode = "line"; // linefill, line, bar 
     
     this.custom = {boundaries : {left:undefined,right:undefined}, cropFn : undefined};
+    this.pause = false;
 };
 exports = module.exports = chart;
