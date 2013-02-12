@@ -662,6 +662,7 @@ var series = function() {
 };
 var to = function(el) {
     // wrap canvas in a div, set this.canvas and this.ctx
+    this.wrappingDivId = "_".concat(rack()).slice(0,10);
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
     this.sources.forEach(function(source) {
@@ -675,12 +676,11 @@ var to = function(el) {
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
     $(el).before(this.interaction);
-    // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color});
+    // wrappingDivId happens during setcanvas (TODO : correct for ref transparency)
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color,wrappingDivId:this.wrappingDivId});
     lib.setInteraction(interaction);
-    $('#chartWrappingDiv').mousemove(interaction.mousemove);
-    $('#chartWrappingDiv').mouseout(interaction.stop);
-    
+    $('#'.concat(this.wrappingDivId)).mousemove(interaction.mousemove);
+    $('#'.concat(this.wrappingDivId)).mouseout(interaction.stop);
 };
 var legend = function(el) {
     this.legend_el = el; 
@@ -703,6 +703,9 @@ var chart = function() {
     this.bgcolor = undefined;
     this.color = {grid:'#c9d6de',bg:'#FFF',xlabel:'#000',xline:'#000',ylabel:'#000',yline:'#000',interactionline:'#000',line:undefined};
     this.rendermode = "line"; // linefill, line, bar 
+    
+    this.custom = {boundaries : {left:undefined,right:undefined}, cropFn : undefined};
+    this.pause = false;
 };
 exports = module.exports = chart;
 });
@@ -740,7 +743,7 @@ exports.setCanvas = function(el,that) {
     $(wrappingDiv).attr('style',style);
     $(el).removeAttr('style');
 
-    wrappingDiv.id = 'chartWrappingDiv';
+    wrappingDiv.id = that.wrappingDivId;
     wrappingDiv.height = that.canvas.height;
     $(that.canvas).wrap(wrappingDiv);
     that.ctx = el.getContext('2d');
@@ -758,16 +761,18 @@ exports.setSource = function(source) {
     $(this.canvas).before(this.buffer[id]);
     var onDataGraph = function(data,flags) {
         // timestamp
-        data.date = new Date();
+        data.date = new Date().getTime(); // actual timestamp
 
         if ((source.dataset === undefined) || (flags && (flags.multiple == true) && (flags.clear && flags.clear == true))) {
             source.dataset = [];
             
         }
         source.dataset.push(data); 
+        if (this.pause === true) 
+            return
 
         var windowsize = source.windowsize || data.windowsize || 10;
-        var datatodisplay = util.cropData(source.dataset,windowsize);
+        var datatodisplay = (this.custom.cropFn) ? this.custom.cropFn(source.dataset,windowsize,this.custom.boundaries) : util.cropData(source.dataset,windowsize);
         var startx = util.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
         var spacing = util.getSpacing(windowsize,this.canvas.width);
 
@@ -859,7 +864,9 @@ exports.drawHorizontalGrid = function(width,height,ctx,color){
         ctx.stroke();
     }
 }
-var getDateString = function(date) {
+var getDateString = function(ms) {
+    var date = new Date(ms);
+
     var pad = function(str) {
         if (str.length == 1) 
             return '0'.concat(str)
@@ -2492,7 +2499,6 @@ var updateHTML = function(params) {
         return;
     }
     var el = params.el;
-//    $(this.legend).css('height',Object.keys(axishash).length * 30);
     Object.keys(axishash).forEach(function(axis) {
         if (axishash[axis].newarrival === true) {
             var legendlinestring = 'vertical-align:middle;display:inline-block;width:20px;border:thin solid '+colorToString(axishash[axis].color);
@@ -2502,10 +2508,13 @@ var updateHTML = function(params) {
                 .append('<div class="legend" id="'+legendid+'"><input type=checkbox checked></input><div style="'+axisstring+'" class="axisname">' + axis + '</div><hr style="'+ legendlinestring+'" class="legendline" /></div>')
                 .css('font-family','sans-serif');
             $('#'+legendid+' input[type="checkbox"]').click(function() {
-                var legendname = rack.get(legendid.slice(1));
-                axishash[legendname].display = !axishash[legendname].display; // toggle boolean
-                $(this).attr('checked',axishash[legendname].display);
-                util.redraw({yaxises:axishash});  
+                //
+                //if ($('.legend input[type="checkbox"]:checked').length > 1) {
+                    var legendname = rack.get(legendid.slice(1));
+                    axishash[legendname].display = !axishash[legendname].display; // toggle boolean
+                    $(this).attr('checked',axishash[legendname].display);
+                    util.redraw({yaxises:axishash});  
+               // }
             });
         }
     },this);
@@ -2652,7 +2661,7 @@ var drawIntersections = function(params) {
 };
 var mousemove = function(ev) {
     this.mouseisout = false;
-    var offset = $('#chartWrappingDiv').offset();
+    var offset = $('#'.concat(this.wrappingDivId)).offset();
     var x = ev.pageX - offset.left;
     var y = ev.pageY - offset.top;
     
@@ -2696,13 +2705,16 @@ var interaction = function (params) {
 
     this.drawVerticalLine = drawVerticalLine;
     this.drawIntersections = drawIntersections;
+
     this.mousemove = mousemove.bind(this);
 
     if (params !== undefined) {
         this.ctx = params.ctx;
         this.canvas = params.canvas;    
         this.sources = params.sources;
+        this.wrappingDivId = params.wrappingDivId;
     }
+
 
     this.redraw = redraw.bind(this);
     this.stop = stop.bind(this);

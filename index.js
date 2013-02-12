@@ -16,6 +16,7 @@ var series = function() {
 };
 var to = function(el) {
     // wrap canvas in a div, set this.canvas and this.ctx
+    this.wrappingDivId = "_".concat(rack()).slice(0,10);
     lib.setCanvas(el,this)
     this.sources.forEach(lib.setSource.bind(this));
     this.sources.forEach(function(source) {
@@ -29,12 +30,11 @@ var to = function(el) {
     this.interaction.width = el.width; 
     this.interaction.height = el.height;
     $(el).before(this.interaction);
-    // chartwrappingdiv happens during setcanvas (TODO : correct for ref transparency)
-    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color});
+    // wrappingDivId happens during setcanvas (TODO : correct for ref transparency)
+    var interaction = new Interaction({ctx:this.interactionctx,canvas:this.interaction,sources:this.sources,color:this.color,wrappingDivId:this.wrappingDivId});
     lib.setInteraction(interaction);
-    $('#chartWrappingDiv').mousemove(interaction.mousemove);
-    $('#chartWrappingDiv').mouseout(interaction.stop);
-    
+    $('#'.concat(this.wrappingDivId)).mousemove(interaction.mousemove);
+    $('#'.concat(this.wrappingDivId)).mouseout(interaction.stop);
 };
 var legend = function(el) {
     this.legend_el = el; 
