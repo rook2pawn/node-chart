@@ -1,4 +1,5 @@
 var lib = require('./lib');
+var legend = require('./lib/legend');
 var Interaction = require('./lib/interaction');
 var hat = require('hat');
 var rack = hat.rack();
@@ -36,9 +37,9 @@ var to = function(el) {
     $('#'.concat(this.wrappingDivId)).mousemove(interaction.mousemove);
     $('#'.concat(this.wrappingDivId)).mouseout(interaction.stop);
 };
-var legend = function(el) {
+var legendfn = function(el) {
     this.legend_el = el; 
-    legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
+    legendfn.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var inspect = function() {
     return this.currentdata;
@@ -50,8 +51,9 @@ var chart = function() {
     this.sources = [];
     this.to = to;
     this.series = series;
-    this.legend = legend;
+    this.legend = legendfn;
     this.inspect = inspect;
+    this.legendobj = new legend;
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;

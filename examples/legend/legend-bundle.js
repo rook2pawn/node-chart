@@ -645,6 +645,7 @@ EventEmitter.prototype.listeners = function(type) {
 require.define("/package.json",function(require,module,exports,__dirname,__filename,process){module.exports = {"main":"index.js"}});
 
 require.define("/index.js",function(require,module,exports,__dirname,__filename,process){var lib = require('./lib');
+var legend = require('./lib/legend');
 var Interaction = require('./lib/interaction');
 var hat = require('hat');
 var rack = hat.rack();
@@ -682,9 +683,9 @@ var to = function(el) {
     $('#'.concat(this.wrappingDivId)).mousemove(interaction.mousemove);
     $('#'.concat(this.wrappingDivId)).mouseout(interaction.stop);
 };
-var legend = function(el) {
+var legendfn = function(el) {
     this.legend_el = el; 
-    legend.clear = lib.legendClear.bind({legend_el:this.legend_el})
+    legendfn.clear = lib.legendClear.bind({legend_el:this.legend_el})
 };
 var inspect = function() {
     return this.currentdata;
@@ -696,8 +697,9 @@ var chart = function() {
     this.sources = [];
     this.to = to;
     this.series = series;
-    this.legend = legend;
+    this.legend = legendfn;
     this.inspect = inspect;
+    this.legendobj = new legend;
     this.interaction = document.createElement('canvas');
     this.interactionctx = this.interaction.getContext('2d');
     this.bgcolor = undefined;
@@ -712,7 +714,6 @@ exports = module.exports = chart;
 
 require.define("/lib/index.js",function(require,module,exports,__dirname,__filename,process){var util = require('./util');
 var Hash = require('hashish');
-var legend = require('./legend')({util:util});
 var interaction = undefined;
 
 var config = {
@@ -776,9 +777,9 @@ exports.setSource = function(source) {
         var startx = util.getStartX(datatodisplay.length,windowsize,this.canvas.width); 
         var spacing = util.getSpacing(windowsize,this.canvas.width);
 
-        var yaxises = legend.update(datatodisplay,this.color.line);
+        var yaxises = this.legendobj.update(datatodisplay,this.color.line);
         if (this.legend_el !== undefined) 
-            legend.updateHTML({el:this.legend_el});
+            this.legendobj.updateHTML({el:this.legend_el});
 
         this.ctx.fillStyle = this.color.bg;
         this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);    
@@ -2451,11 +2452,10 @@ for (var key in cssKeywords) {
 require.define("/lib/legend.js",function(require,module,exports,__dirname,__filename,process){var mrcolor = require('mrcolor');
 var Hash = require('hashish');
 var hat = require('hat');
+var util = require('./util');
 var nextcolor = mrcolor();
 var rack = hat.rack(128,10,2);
 
-var util = undefined;
-var axishash = {};
 // foreach key in data add to hash axises 
 // if new addition, create a color.
 var colorToString = function(colorobj) {
@@ -2463,6 +2463,7 @@ var colorToString = function(colorobj) {
     return 'rgb('+color[0]+','+color[1]+','+color[2]+')';
 };
 var update = function(list,linecolors) {
+    var axishash = this.axishash;
     list.forEach(function(data) {
         var idx = 0;
         Hash(data)
@@ -2491,7 +2492,7 @@ var update = function(list,linecolors) {
     return axishash;
 };
 var clear = function(legend_el) {
-    axishash = {};
+    this.axishash = {};
     $(legend_el).empty();   
 };
 var updateHTML = function(params) {
@@ -2499,11 +2500,13 @@ var updateHTML = function(params) {
         return;
     }
     var el = params.el;
+    var axishash = this.axishash;
     Object.keys(axishash).forEach(function(axis) {
         if (axishash[axis].newarrival === true) {
             var legendlinestring = 'vertical-align:middle;display:inline-block;width:20px;border:thin solid '+colorToString(axishash[axis].color);
             var axisstring = 'padding:0;line-height:10px;font-size:10px;display:inline-block;margin-right:5px;';
             var legendid = '_'+rack(axis);
+//            console.log(legendid);
             $(el)
                 .append('<div class="legend" id="'+legendid+'"><input type=checkbox checked></input><div style="'+axisstring+'" class="axisname">' + axis + '</div><hr style="'+ legendlinestring+'" class="legendline" /></div>')
                 .css('font-family','sans-serif');
@@ -2519,14 +2522,11 @@ var updateHTML = function(params) {
         }
     },this);
 };
-exports = module.exports = function(params) {
-    if (params !== undefined) 
-        util = params.util;
-    var self = {}
-    self.update = update;
-    self.updateHTML = updateHTML;
-    self.clear = clear;
-    return self;
+exports = module.exports = function() {
+    this.axishash  = {};
+    this.update = update;
+    this.updateHTML = updateHTML;
+    this.clear = clear;
 };
 });
 
@@ -2727,18 +2727,26 @@ exports = module.exports = interaction;
 require.define("/examples/legend/legend.js",function(require,module,exports,__dirname,__filename,process){var ee = require('events').EventEmitter;
 var nodechart = require('../../index.js');
 var datasource = new ee;
+var datasource2 = new ee;
 $(window).ready(function() {
     var chart = new nodechart;
     chart.series(datasource);
     chart.legend(document.getElementById('mylegend'));
     chart.to(document.getElementById('mycanvas'));
-//    chart.color.legendbg = "#C45AEC";
+
+    var chart2 = new nodechart;
+    chart2.series(datasource2);
+    chart2.legend(document.getElementById('mylegend2'));
+    chart2.to(document.getElementById('mycanvas2'));
+
     setInterval(function() {
         var a = Math.floor(Math.random()*30);
         var b = Math.floor(Math.random()*1000);
         var c = Math.floor(Math.random()*200);
         datasource.emit('data',{'php value':a,'nodejs value':b, 'fortran value':c});
+        datasource2.emit('data',{'amd':a,'boston':b, 'california':c});
     },1000);
+
 });
 });
 require("/examples/legend/legend.js");
