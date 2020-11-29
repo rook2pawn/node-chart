@@ -3,8 +3,11 @@ const choo = require("choo");
 const html = require("nanohtml");
 const devtools = require("choo-devtools");
 const nanostate = require("nanostate");
+
 const FSMRender = require("./fsmRender");
 const FSMControls = require("./fsmControls");
+const DataSourceComponent = require("./components/dataSource");
+
 const Chart = require("./components/chart");
 
 const css = 0;
@@ -17,16 +20,41 @@ module.exports = () => {
   const fsm_chart = new FSMRender(chart);
   const controls_chart = new FSMControls(chart);
 
+  const binanceComponent = new DataSourceComponent({
+    title: "binance ltcbtc stream",
+    type: "binance",
+  });
+  const fsm_binance = new FSMRender(binanceComponent);
+  const controls_binance = new FSMControls(binanceComponent);
+
+  const randomComponent = new DataSourceComponent({
+    title: "random stream",
+    type: "random",
+  });
+  const fsm_random = new FSMRender(randomComponent);
+  const controls_random = new FSMControls(randomComponent);
+
   function mainView(state, emit) {
     if (state.logger) {
       console.log("mainView:state", state);
     }
     return html`<body>
       <div style="display:flex; flex-direction:row;">
-        <div class="column">
-          <h1>FSM Component</h1>
+        <div>
           ${chart.render({ state, emit })} ${fsm_chart.render({ state, emit })}
           ${controls_chart.render({ state, emit })}
+        </div>
+        <div style="display:flex; flex-direction:column">
+          <div>
+            ${binanceComponent.render({ state, emit })}
+            ${fsm_binance.render({ state, emit })}
+            ${controls_binance.render({ state, emit })}
+          </div>
+          <div>
+            ${randomComponent.render({ state, emit })}
+            ${fsm_random.render({ state, emit })}
+            ${controls_random.render({ state, emit })}
+          </div>
         </div>
       </div>
     </body>`;
@@ -35,12 +63,20 @@ module.exports = () => {
   app.use((state) => {
     state.logger = false;
   });
-  app.use((state, emitter) => {});
+  app.use((state, emitter) => {
+    emitter.on("random", ({ value }) => {
+      chart.update({ type: "random", value });
+    });
+    emitter.on("binance", ({ value }) => {
+      chart.update({ type: "binance", value });
+    });
+  });
+
   app.route("/", mainView);
   app.mount("body");
 };
 
-},{"./components/chart":3,"./fsmControls":4,"./fsmRender":5,"choo":27,"choo-devtools":15,"nanohtml":44,"nanostate":57,"sheetify/insert":69}],2:[function(require,module,exports){
+},{"./components/chart":3,"./components/dataSource":4,"./fsmControls":7,"./fsmRender":8,"choo":30,"choo-devtools":18,"nanohtml":47,"nanostate":60,"sheetify/insert":72}],2:[function(require,module,exports){
 const html = require("nanohtml");
 
 const getBoundaries = (list) => {
@@ -49,7 +85,7 @@ const getBoundaries = (list) => {
     minY = MAX;
   let maxX = -MAX,
     maxY = -MAX;
-  list.forEach(({ x, y }) => {
+  list.slice(-20).forEach(({ x, y }) => {
     if (x < minX) {
       minX = x;
     }
@@ -68,6 +104,13 @@ const getBoundaries = (list) => {
 
 const Chart = function () {
   this.scaledData = [];
+  // visual attributes
+  this.chartAttributes = {
+    CHART_WIDTH: 300,
+    CHART_HEIGHT: 200,
+  };
+  // data attributes
+  // height refers to the max y - min y, width max x - min x
   this.attributes = {
     width: 100,
     height: 100,
@@ -75,48 +118,80 @@ const Chart = function () {
     minY: 0,
     maxX: 100,
     maxY: 100,
+    data: [{ x: 0, y: 0 }],
   };
 };
+Chart.prototype.getLength = function () {
+  return this.attributes.data.length;
+};
+Chart.prototype.addSingleYValueData = function (val) {
+  const obj = {
+    x: this.getLength(),
+    y: val,
+  };
+  this.attributes.data.push(obj);
+  this.scaleData();
+};
+Chart.prototype.addSingleData = function (obj) {
+  this.attributes.data.push(obj);
+  this.scaleData();
+};
+Chart.prototype.addData = function (list) {
+  this.attributes.data = this.attributes.data.concat(list);
+};
 Chart.prototype.setBoundaries = function (data) {
-  const { minX, maxX, minY, maxY } = getBoundaries(data);
+  const { minX, maxX, minY, maxY } = getBoundaries(
+    data || this.attributes.data
+  );
   this.attributes.minX = minX;
   this.attributes.minY = minY;
   this.attributes.maxX = maxX;
   this.attributes.maxY = maxY;
   this.attributes.width = maxX - minX;
   this.attributes.height = maxY - minY;
-  console.log("attributes:", this.attributes);
+  //  console.log("attributes:", this.attributes);
 };
-Chart.prototype.scaleData = function (data) {
+Chart.prototype.scaleData = function () {
   this.scaledData = this.attributes["data"].map(({ x, y }, idx) => {
     let scaledX = (x - this.attributes.minX) / this.attributes.width;
     let scaledY = (y - this.attributes.minY) / this.attributes.height;
-    if (idx < 10) {
-      console.log("INPUT:", { x, y }, "height:", this.attributes.height);
-      console.log("OUTPUT:", { x: scaledX, y: scaledY });
-    }
+    //    console.log("INPUT:", { x, y }, "height:", this.attributes.height);
+    //    console.log("OUTPUT:", { x: scaledX, y: scaledY });
     return { x: scaledX, y: scaledY };
   });
 };
 Chart.prototype.zoomIn = function () {
-  this.attributes.minX += 4;
-  this.attributes.width = this.attributes.maxX - this.attributes.minX;
-  console.log(
-    "zoomIn: minX",
-    this.attributes.minX,
-    " width:",
-    this.attributes.width
-  );
+  return new Promise((resolve, reject) => {
+    if (this.attributes.minX + 4 >= this.attributes.maxX) {
+      return reject("cannot zoom in further");
+    }
+    this.attributes.minX += 4;
+    this.attributes.width = this.attributes.maxX - this.attributes.minX;
+    console.log(
+      "zoomIn: minX",
+      this.attributes.minX,
+      " width:",
+      this.attributes.width
+    );
+    return resolve();
+  });
 };
 Chart.prototype.zoomOut = function () {
-  this.attributes.minX -= 4;
-  this.attributes.width = this.attributes.maxX - this.attributes.minX;
-  console.log(
-    "zoomOut: minX",
-    this.attributes.minX,
-    " width:",
-    this.attributes.width
-  );
+  return new Promise((resolve, reject) => {
+    if (this.attributes.minX - 4 <= -this.attributes.maxX) {
+      return reject("cannot zoom out further");
+    }
+
+    this.attributes.minX -= 4;
+    this.attributes.width = this.attributes.maxX - this.attributes.minX;
+    console.log(
+      "zoomOut: minX",
+      this.attributes.minX,
+      " width:",
+      this.attributes.width
+    );
+    return resolve();
+  });
 };
 
 Chart.prototype.set = function (attr, data) {
@@ -126,12 +201,23 @@ Chart.prototype.set = function (attr, data) {
 };
 Chart.prototype.render = function ({ type }) {
   console.log("TYPE:", type);
+  let pointstring = this.scaledData
+    .map(
+      ({ x, y }) =>
+        `${this.chartAttributes.CHART_WIDTH * x},${
+          this.chartAttributes.CHART_HEIGHT -
+          this.chartAttributes.CHART_HEIGHT * y
+        }`
+    )
+    .join("\n");
+
   switch (type) {
     case "polyline":
-      const pointstring = this.scaledData
-        .map(({ x, y }) => `${100 * x},${100 * y}`)
-        .join("\n");
-      return html`<svg viewBox="0 0 100 100" class="chart">
+      return html`<svg
+        viewBox="0 0 ${this.chartAttributes.CHART_WIDTH} ${this.chartAttributes
+          .CHART_HEIGHT}"
+        class="chart"
+      >
         <polyline
           fill="none"
           stroke="#0074d9"
@@ -140,10 +226,42 @@ Chart.prototype.render = function ({ type }) {
         />
       </svg>`;
       break;
-    case "point":
-      return html`<svg viewBox="0 0 100 100" class="chart">
+    case "polylinepoint":
+      return html`<svg
+        viewBox="0 0 ${this.chartAttributes.CHART_WIDTH} ${this.chartAttributes
+          .CHART_HEIGHT}"
+        class="chart"
+      >
+        <polyline
+          fill="none"
+          stroke="#0074d9"
+          stroke-width="0.25"
+          points="${pointstring}"
+        />
         ${this.scaledData.map(({ x, y }) => {
-          return html`<circle cx="${100 * x}" cy="${100 * y}" r="1"></circle>`;
+          return html`<circle
+            cx="${this.chartAttributes.CHART_WIDTH * x}"
+            cy="${this.chartAttributes.CHART_HEIGHT -
+            this.chartAttributes.CHART_HEIGHT * y}"
+            r="1"
+          ></circle>`;
+        })}
+      </svg>`;
+      break;
+
+    case "point":
+      return html`<svg
+        viewBox="0 0 ${this.chartAttributes.CHART_WIDTH} ${this.chartAttributes
+          .CHART_HEIGHT}"
+        class="chart"
+      >
+        ${this.scaledData.map(({ x, y }) => {
+          return html`<circle
+            cx="${this.chartAttributes.CHART_WIDTH * x}"
+            cy="${this.chartAttributes.CHART_HEIGHT -
+            this.chartAttributes.CHART_HEIGHT * y}"
+            r="1"
+          ></circle>`;
         })}
       </svg>`;
 
@@ -151,30 +269,18 @@ Chart.prototype.render = function ({ type }) {
     default:
       break;
   }
-  return html`<svg
-    viewBox="${this.attributes.minX} ${-this.attributes.minY} ${this.attributes
-      .width} ${this.attributes.height}"
-    class="chart"
-  >
-    <polyline
-      fill="none"
-      stroke="#0074d9"
-      stroke-width="0.25"
-      points="${pointstring}"
-    />
-  </svg>`;
 };
 
 module.exports = exports = Chart;
 
-},{"nanohtml":44}],3:[function(require,module,exports){
+},{"nanohtml":47}],3:[function(require,module,exports){
 const Nanocomponent = require("nanocomponent");
 const html = require("choo/html");
 const css = 0;
 const nanostate = require("nanostate");
 const Chart = require("../../chart.js");
 
-;((require('sheetify/insert')(".polyline {\n  border: thin solid red;\n}") || true) && "_81c30fb9");
+;((require('sheetify/insert')(".chart {\n  width: 500px;\n}") || true) && "_b42edaa9");
 
 class Component extends Nanocomponent {
   constructor() {
@@ -184,121 +290,44 @@ class Component extends Nanocomponent {
       this._loadedResolve = resolve;
     });
     this.chart = new Chart();
-
     this.chart.set("data", [
-      { y: 40.67999999999999, x: 0 },
-      { y: 40.69, x: 1 },
-      { y: 40.71, x: 2 },
-      { y: 40.660000000000004, x: 3 },
-      { y: 40.67, x: 4 },
-      { y: 40.67999999999999, x: 5 },
-      { y: 40.699999999999996, x: 6 },
-      { y: 40.72, x: 7 },
-      { y: 40.699999999999996, x: 8 },
-      { y: 40.74, x: 9 },
-      { y: 40.71, x: 10 },
-      { y: 40.74999999999999, x: 11 },
-      { y: 40.74999999999999, x: 12 },
-      { y: 40.699999999999996, x: 13 },
-      { y: 40.71, x: 14 },
-      { y: 40.69, x: 15 },
-      { y: 40.78, x: 16 },
-      { y: 40.97, x: 17 },
-      { y: 40.96, x: 18 },
-      { y: 41.01, x: 19 },
-      { y: 41.1, x: 20 },
-      { y: 41.120000000000005, x: 21 },
-      { y: 41.18, x: 22 },
-      { y: 41.04, x: 23 },
-      { y: 41.089999999999996, x: 24 },
-      { y: 40.96, x: 25 },
-      { y: 40.940000000000005, x: 26 },
-      { y: 40.879999999999995, x: 27 },
-      { y: 40.81, x: 28 },
-      { y: 40.83, x: 29 },
-      { y: 40.89, x: 30 },
-      { y: 40.870000000000005, x: 31 },
-      { y: 40.82, x: 32 },
-      { y: 40.800000000000004, x: 33 },
-      { y: 40.67999999999999, x: 34 },
-      { y: 40.74, x: 35 },
-      { y: 40.72, x: 36 },
-      { y: 40.699999999999996, x: 37 },
-      { y: 40.69, x: 38 },
-      { y: 40.67999999999999, x: 39 },
-      { y: 40.65, x: 40 },
-      { y: 40.660000000000004, x: 41 },
-      { y: 40.69, x: 42 },
-      { y: 40.71, x: 43 },
-      { y: 40.72, x: 44 },
-      { y: 40.69, x: 45 },
-      { y: 40.699999999999996, x: 46 },
-      { y: 40.699999999999996, x: 47 },
-      { y: 40.699999999999996, x: 48 },
-      { y: 40.65, x: 49 },
-      { y: 40.65, x: 50 },
-      { y: 40.69, x: 51 },
-      { y: 40.660000000000004, x: 52 },
-      { y: 40.67, x: 53 },
-      { y: 40.660000000000004, x: 54 },
-      { y: 40.67, x: 55 },
-      { y: 40.69, x: 56 },
-      { y: 40.699999999999996, x: 57 },
-      { y: 40.67, x: 58 },
-      { y: 40.67, x: 59 },
-      { y: 40.62, x: 60 },
-      { y: 40.64, x: 61 },
-      { y: 40.55, x: 62 },
-      { y: 40.52, x: 63 },
-      { y: 40.55, x: 64 },
-      { y: 40.55, x: 65 },
-      { y: 40.470000000000006, x: 66 },
-      { y: 40.45, x: 67 },
-      { y: 40.51, x: 68 },
-      { y: 40.53, x: 69 },
-      { y: 40.57, x: 70 },
-      { y: 40.62, x: 71 },
-      { y: 40.59, x: 72 },
-      { y: 40.55, x: 73 },
-      { y: 40.55, x: 74 },
-      { y: 40.55, x: 75 },
-      { y: 40.57, x: 76 },
-      { y: 40.59, x: 77 },
-      { y: 40.52, x: 78 },
-      { y: 40.540000000000006, x: 79 },
-      { y: 40.57, x: 80 },
-      { y: 40.53, x: 81 },
-      { y: 40.52, x: 82 },
-      { y: 40.52, x: 83 },
-      { y: 40.51, x: 84 },
-      { y: 40.51, x: 85 },
-      { y: 40.489999999999995, x: 86 },
-      { y: 40.470000000000006, x: 87 },
-      { y: 40.489999999999995, x: 88 },
-      { y: 40.5, x: 89 },
-      { y: 40.53, x: 90 },
-      { y: 40.57, x: 91 },
-      { y: 40.629999999999995, x: 92 },
-      { y: 40.629999999999995, x: 93 },
-      { y: 40.64, x: 94 },
-      { y: 40.59, x: 95 },
-      { y: 40.58, x: 96 },
-      { y: 40.59, x: 97 },
-      { y: 40.55, x: 98 },
-      { y: 40.53, x: 99 },
+      { x: 0, y: 5 },
+      { x: 1, y: 10 },
+      { x: 2, y: 2 },
+      { x: 3, y: 0 },
+      { x: 4, y: 2 },
+      { x: 5, y: 3 },
+      { x: 6, y: 13 },
+      { x: 7, y: 24 },
+      { x: 8, y: 48 },
+      { x: 9, y: 35 },
+      { x: 10, y: 27 },
     ]);
 
     const chartTypeState = nanostate("polyline", {
-      polyline: { point: "point" },
-      point: { polyline: "polyline" },
+      polyline: { point: "point", polylinepoint: "polylinepoint" },
+      polylinepoint: { polyline: "polyline", point: "point" },
+      point: { polyline: "polyline", polylinepoint: "polylinepoint" },
     });
-    this.fsm = chartTypeState;
+    const chartDataSourceState = nanostate("random", {
+      random: { binance: "binance" },
+      binance: { random: "random" },
+    });
+    this.fsm = nanostate.parallel({
+      chartType: chartTypeState,
+      chartData: chartDataSourceState,
+    });
   }
 
   createElement({ state, emit }) {
+    console.log("Chart Component Render");
     return html`<div class="polyline">
       <h2>Chart</h2>
-      ${this.chart.render({ type: this.fsm.state })}
+      ${this.chart.render({ type: this.fsm.transitions.chartType.state })}
+      <div>
+        <div>Chart Data Source</div>
+        <div>${this.fsm.transitions.chartData.state}</div>
+      </div>
     </div>`;
   }
 
@@ -306,18 +335,40 @@ class Component extends Nanocomponent {
     this.chart.set("data", data);
   }
 
+  addSingleData(val) {
+    this.chart.addSingleYValueData(val);
+    this.chart.setBoundaries();
+    this.chart.scaleData();
+  }
+  addData(list) {
+    this.chart.addData(list);
+    this.chart.setBoundaries();
+    this.chart.scaleData();
+  }
+
   zoom({ direction }) {
     switch (direction) {
       case "in":
-        this.chart.zoomIn();
-        this.chart.scaleData();
-        this.rerender();
+        this.chart
+          .zoomIn()
+          .then(() => {
+            this.chart.scaleData();
+            this.rerender();
+          })
+          .catch((e) => {
+            console.log(e);
+          });
         break;
       case "out":
-        this.chart.zoomOut();
-        this.chart.scaleData();
-        this.rerender();
-
+        this.chart
+          .zoomOut()
+          .then(() => {
+            this.chart.scaleData();
+            this.rerender();
+          })
+          .catch((e) => {
+            console.log(e);
+          });
         break;
       default:
         break;
@@ -325,7 +376,6 @@ class Component extends Nanocomponent {
   }
 
   wheel(e) {
-    console.log("DELTAY:", e.deltaY);
     let direction = "in";
     if (e.deltaY > 0) {
       direction = "out";
@@ -340,14 +390,176 @@ class Component extends Nanocomponent {
     this._loadedResolve();
   }
 
-  update() {
+  update({ state, emit, type, value }) {
+    if (type !== undefined) {
+      //      console.log("UPDATE!:", type, value);
+      if (type !== this.fsm.transitions.chartData.state) {
+        return;
+      }
+      switch (type) {
+        case "random":
+          this.addSingleData(value);
+          this.rerender();
+          break;
+        case "binance":
+          this.addSingleData(value);
+          this.rerender();
+          break;
+        default:
+          break;
+      }
+    }
     return true;
   }
 }
 
 module.exports = exports = Component;
 
-},{"../../chart.js":2,"choo/html":26,"nanocomponent":40,"nanostate":57,"sheetify/insert":69}],4:[function(require,module,exports){
+},{"../../chart.js":2,"choo/html":29,"nanocomponent":43,"nanostate":60,"sheetify/insert":72}],4:[function(require,module,exports){
+const Nanocomponent = require("nanocomponent");
+const html = require("choo/html");
+const css = 0;
+const nanostate = require("nanostate");
+
+const Binance = require("../../data-sources/binance");
+const Random = require("../../data-sources/random");
+
+;((require('sheetify/insert')("") || true) && "_d41d8cd9");
+
+class Component extends Nanocomponent {
+  constructor({ title = "default title", type }) {
+    if (type === undefined) {
+      throw new Error("dataSource Component requires type");
+    }
+    super();
+    this._loadedResolve;
+    this.loaded = new Promise((resolve, reject) => {
+      this._loadedResolve = resolve;
+    });
+    this.title = title;
+    this.type = type;
+    this.data;
+
+    switch (type) {
+      case "random":
+        this.data = new Random();
+        this.data.subscribe(this.onData.bind(this));
+        break;
+      case "binance":
+        this.data = new Binance();
+        this.data.subscribe(this.onData.bind(this));
+        break;
+      default:
+        break;
+    }
+
+    const dataSourceControlState = nanostate("stopped", {
+      stopped: { start: "started" },
+      started: { stop: "stopped" },
+    });
+
+    dataSourceControlState.on("started", () => {
+      this.data.start();
+    });
+    dataSourceControlState.on("stopped", () => {
+      this.data.stop();
+    });
+
+    this.fsm = dataSourceControlState;
+  }
+  onData(obj) {
+    console.log("onData:", obj);
+    switch (this.type) {
+      case "random":
+        this.value = obj;
+        this.rerender();
+        this.emit("random", { value: this.value });
+        break;
+      case "binance":
+        const data = JSON.parse(obj.data);
+        this.value = data.c;
+        this.rerender();
+        this.emit("binance", { value: this.value });
+        break;
+      default:
+        break;
+    }
+  }
+  createElement({ state, emit }) {
+    this.emit = emit;
+    return html`<div class="">
+      <h2>DataSource</h2>
+      <h3>${this.title}</h3>
+      <span>${this.value}</span>
+    </div>`;
+  }
+
+  load(el) {
+    this.el = el;
+    this._loadedResolve();
+  }
+
+  update() {
+    return false;
+  }
+}
+
+module.exports = exports = Component;
+
+},{"../../data-sources/binance":5,"../../data-sources/random":6,"choo/html":29,"nanocomponent":43,"nanostate":60,"sheetify/insert":72}],5:[function(require,module,exports){
+//const WebSocket = require("ws");
+
+const Binance = function () {
+  this.ws;
+};
+Binance.prototype.subscribe = function (cb) {
+  this.cb = cb;
+};
+Binance.prototype.start = function () {
+  return new Promise((resolve, reject) => {
+    this.ws = new WebSocket(
+      "wss://stream.binance.com:9443/ws/ltcbtc@miniTicker"
+    );
+    this.ws.onopen = () => {
+      console.log("Connected to binance");
+      return resolve();
+    };
+    this.ws.onmessage = (data) => {
+      console.log("message:", data);
+      this.cb(data);
+    };
+    this.ws.onerror = function (event) {
+      console.error("WebSocket error observed:", event);
+    };
+  });
+};
+Binance.prototype.stop = function () {
+  if (this.ws) this.ws.close();
+};
+
+module.exports = exports = Binance;
+
+},{}],6:[function(require,module,exports){
+const Random = function () {};
+Random.prototype.subscribe = function (cb) {
+  this.cb = cb;
+  this.timer;
+};
+Random.prototype.start = function () {
+  return new Promise((resolve, reject) => {
+    this.timer = setInterval(() => {
+      this.cb(~~(Math.random() * 100));
+    }, 1000);
+    return resolve();
+  });
+};
+Random.prototype.stop = function () {
+  clearInterval(this.timer);
+};
+
+module.exports = exports = Random;
+
+},{}],7:[function(require,module,exports){
 const Nanocomponent = require("nanocomponent");
 const html = require("choo/html");
 const css = 0;
@@ -443,7 +655,7 @@ class Component extends Nanocomponent {
 
 module.exports = exports = Component;
 
-},{"choo/html":26,"nanocomponent":40,"sheetify/insert":69}],5:[function(require,module,exports){
+},{"choo/html":29,"nanocomponent":43,"sheetify/insert":72}],8:[function(require,module,exports){
 const Nanocomponent = require("nanocomponent");
 const html = require("choo/html");
 const css = 0;
@@ -501,13 +713,13 @@ class Component extends Nanocomponent {
 
 module.exports = exports = Component;
 
-},{"choo/html":26,"nanocomponent":40,"sheetify/insert":69}],6:[function(require,module,exports){
+},{"choo/html":29,"nanocomponent":43,"sheetify/insert":72}],9:[function(require,module,exports){
 const lib = require("./lib");
 const app = require("./app");
 
 lib.DOMContentLoadedPromise.then(app);
 
-},{"./app":1,"./lib":7}],7:[function(require,module,exports){
+},{"./app":1,"./lib":10}],10:[function(require,module,exports){
 exports.DOMContentLoadedPromise = new Promise((resolve, reject) => {
   document.addEventListener(
     "DOMContentLoaded",
@@ -518,7 +730,7 @@ exports.DOMContentLoadedPromise = new Promise((resolve, reject) => {
   );
 });
 
-},{}],8:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function (global){(function (){
 'use strict';
 
@@ -1028,7 +1240,7 @@ var objectKeys = Object.keys || function (obj) {
 };
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"object-assign":60,"util/":11}],9:[function(require,module,exports){
+},{"object-assign":63,"util/":14}],12:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1053,14 +1265,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],10:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],11:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function (process,global){(function (){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1650,7 +1862,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this)}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":10,"_process":66,"inherits":9}],12:[function(require,module,exports){
+},{"./support/isBuffer":13,"_process":69,"inherits":12}],15:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1802,9 +2014,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],13:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 
-},{}],14:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3585,7 +3797,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":12,"buffer":14,"ieee754":36}],15:[function(require,module,exports){
+},{"base64-js":15,"buffer":17,"ieee754":39}],18:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter
 
 var storage = require('./lib/storage')
@@ -3637,7 +3849,7 @@ function expose (opts) {
   }
 }
 
-},{"./lib/copy":16,"./lib/debug":17,"./lib/help":18,"./lib/log":19,"./lib/logger":20,"./lib/perf":21,"./lib/storage":22,"events":71,"wayfarer/get-all-routes":72}],16:[function(require,module,exports){
+},{"./lib/copy":19,"./lib/debug":20,"./lib/help":21,"./lib/log":22,"./lib/logger":23,"./lib/perf":24,"./lib/storage":25,"events":74,"wayfarer/get-all-routes":75}],19:[function(require,module,exports){
 var stateCopy = require('state-copy')
 var pluck = require('plucker')
 
@@ -3653,7 +3865,7 @@ function copy (state) {
   stateCopy(isStateString ? pluck.apply(this, arguments) : state)
 }
 
-},{"plucker":64,"state-copy":70}],17:[function(require,module,exports){
+},{"plucker":67,"state-copy":73}],20:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var onChange = require('object-change-callsite')
 var nanologger = require('nanologger')
@@ -3695,7 +3907,7 @@ function debug (state, emitter, app, localEmitter) {
   })
 }
 
-},{"assert":8,"nanologger":48,"object-change-callsite":61}],18:[function(require,module,exports){
+},{"assert":11,"nanologger":51,"object-change-callsite":64}],21:[function(require,module,exports){
 module.exports = help
 
 function help () {
@@ -3728,7 +3940,7 @@ function print (cmd, desc) {
 
 function noop () {}
 
-},{}],19:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var removeItems = require('remove-array-items')
 var scheduler = require('nanoscheduler')()
 var nanologger = require('nanologger')
@@ -3806,7 +4018,7 @@ function log (state, emitter, app, localEmitter) {
 
 function noop () {}
 
-},{"clone":29,"nanologger":48,"nanoscheduler":56,"remove-array-items":23}],20:[function(require,module,exports){
+},{"clone":32,"nanologger":51,"nanoscheduler":59,"remove-array-items":26}],23:[function(require,module,exports){
 var scheduler = require('nanoscheduler')()
 var nanologger = require('nanologger')
 var Hooks = require('choo-hooks')
@@ -3891,7 +4103,7 @@ function logger (state, emitter, opts) {
   }
 }
 
-},{"choo-hooks":24,"nanologger":48,"nanoscheduler":56}],21:[function(require,module,exports){
+},{"choo-hooks":27,"nanologger":51,"nanoscheduler":59}],24:[function(require,module,exports){
 var onPerformance = require('on-performance')
 
 var BAR = '█'
@@ -4032,7 +4244,7 @@ function getMedian (args) {
 // Do nothing.
 function noop () {}
 
-},{"on-performance":63}],22:[function(require,module,exports){
+},{"on-performance":66}],25:[function(require,module,exports){
 var pretty = require('prettier-bytes')
 
 module.exports = storage
@@ -4075,7 +4287,7 @@ function fmt (num) {
 
 function noop () {}
 
-},{"prettier-bytes":65}],23:[function(require,module,exports){
+},{"prettier-bytes":68}],26:[function(require,module,exports){
 'use strict';
 
 /**
@@ -4106,7 +4318,7 @@ function removeItems (arr, startIdx, removeCount) {
 
 module.exports = removeItems;
 
-},{}],24:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var onPerformance = require('on-performance')
 var scheduler = require('nanoscheduler')()
 var assert = require('assert')
@@ -4235,7 +4447,7 @@ ChooHooks.prototype._emitLoaded = function () {
   })
 }
 
-},{"assert":8,"nanoscheduler":56,"on-performance":63}],25:[function(require,module,exports){
+},{"assert":11,"nanoscheduler":59,"on-performance":66}],28:[function(require,module,exports){
 var assert = require('assert')
 var LRU = require('nanolru')
 
@@ -4278,10 +4490,10 @@ function newCall (Cls) {
   return new (Cls.bind.apply(Cls, arguments)) // eslint-disable-line
 }
 
-},{"assert":38,"nanolru":49}],26:[function(require,module,exports){
+},{"assert":41,"nanolru":52}],29:[function(require,module,exports){
 module.exports = require('nanohtml')
 
-},{"nanohtml":44}],27:[function(require,module,exports){
+},{"nanohtml":47}],30:[function(require,module,exports){
 var scrollToAnchor = require('scroll-to-anchor')
 var documentReady = require('document-ready')
 var nanotiming = require('nanotiming')
@@ -4565,7 +4777,7 @@ Choo.prototype._setCache = function (state) {
   }
 }
 
-},{"./component/cache":25,"assert":38,"document-ready":30,"nanobus":39,"nanohref":41,"nanomorph":50,"nanoquery":53,"nanoraf":54,"nanorouter":55,"nanotiming":59,"scroll-to-anchor":68}],28:[function(require,module,exports){
+},{"./component/cache":28,"assert":41,"document-ready":33,"nanobus":42,"nanohref":44,"nanomorph":53,"nanoquery":56,"nanoraf":57,"nanorouter":58,"nanotiming":62,"scroll-to-anchor":71}],31:[function(require,module,exports){
 /*! clipboard-copy. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* global DOMException */
 
@@ -4618,7 +4830,7 @@ function clipboardCopy (text) {
     : Promise.reject(new DOMException('The request is not allowed', 'NotAllowedError'))
 }
 
-},{}],29:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 (function (Buffer){(function (){
 var clone = (function() {
 'use strict';
@@ -4879,7 +5091,7 @@ if (typeof module === 'object' && module.exports) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":14}],30:[function(require,module,exports){
+},{"buffer":17}],33:[function(require,module,exports){
 'use strict'
 
 module.exports = ready
@@ -4898,7 +5110,7 @@ function ready (callback) {
   })
 }
 
-},{}],31:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = stringify
 stringify.default = stringify
 stringify.stable = deterministicStringify
@@ -5061,7 +5273,7 @@ function replaceGetterValues (replacer) {
   }
 }
 
-},{}],32:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (global){(function (){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -5082,7 +5294,7 @@ if (typeof document !== 'undefined') {
 module.exports = doccy;
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":13}],33:[function(require,module,exports){
+},{"min-document":16}],36:[function(require,module,exports){
 (function (global){(function (){
 var win;
 
@@ -5099,7 +5311,7 @@ if (typeof window !== "undefined") {
 module.exports = win;
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],34:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 module.exports = attributeToProperty
 
 var transform = {
@@ -5120,7 +5332,7 @@ function attributeToProperty (h) {
   }
 }
 
-},{}],35:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 var attrToProp = require('hyperscript-attribute-to-property')
 
 var VAR = 0, TEXT = 1, OPEN = 2, CLOSE = 3, ATTR = 4
@@ -5417,7 +5629,7 @@ var closeRE = RegExp('^(' + [
 ].join('|') + ')(?:[\.#][a-zA-Z0-9\u007F-\uFFFF_:-]+)*$')
 function selfClosing (tag) { return closeRE.test(tag) }
 
-},{"hyperscript-attribute-to-property":34}],36:[function(require,module,exports){
+},{"hyperscript-attribute-to-property":37}],39:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -5504,7 +5716,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],37:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 var containers = []; // will store container HTMLElement references
 var styleElements = []; // will store {prepend: HTMLElement, append: HTMLElement}
 
@@ -5564,7 +5776,7 @@ function createStyleElement() {
 module.exports = insertCss;
 module.exports.insertCss = insertCss;
 
-},{}],38:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 assert.notEqual = notEqual
 assert.notOk = notOk
 assert.equal = equal
@@ -5588,7 +5800,7 @@ function assert (t, m) {
   if (!t) throw new Error(m || 'AssertionError')
 }
 
-},{}],39:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 var splice = require('remove-array-items')
 var nanotiming = require('nanotiming')
 var assert = require('assert')
@@ -5752,7 +5964,7 @@ Nanobus.prototype._emit = function (arr, eventName, data, uuid) {
   }
 }
 
-},{"assert":38,"nanotiming":59,"remove-array-items":67}],40:[function(require,module,exports){
+},{"assert":41,"nanotiming":62,"remove-array-items":70}],43:[function(require,module,exports){
 var document = require('global/document')
 var nanotiming = require('nanotiming')
 var morph = require('nanomorph')
@@ -5908,7 +6120,7 @@ Nanocomponent.prototype.update = function () {
   throw new Error('nanocomponent: update should be implemented!')
 }
 
-},{"assert":38,"global/document":32,"nanomorph":50,"nanotiming":59,"on-load":62}],41:[function(require,module,exports){
+},{"assert":41,"global/document":35,"nanomorph":53,"nanotiming":62,"on-load":65}],44:[function(require,module,exports){
 var assert = require('assert')
 
 var safeExternalLink = /(noopener|noreferrer) (noopener|noreferrer)/
@@ -5953,7 +6165,7 @@ function href (cb, root) {
   })
 }
 
-},{"assert":38}],42:[function(require,module,exports){
+},{"assert":41}],45:[function(require,module,exports){
 'use strict'
 
 var trailingNewlineRegex = /\n[\s]+$/
@@ -6087,7 +6299,7 @@ module.exports = function appendChild (el, childs) {
   }
 }
 
-},{}],43:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 'use strict'
 
 module.exports = [
@@ -6097,17 +6309,17 @@ module.exports = [
   'readonly', 'required', 'reversed', 'selected'
 ]
 
-},{}],44:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 module.exports = require('./dom')(document)
 
-},{"./dom":46}],45:[function(require,module,exports){
+},{"./dom":49}],48:[function(require,module,exports){
 'use strict'
 
 module.exports = [
   'indeterminate'
 ]
 
-},{}],46:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict'
 
 var hyperx = require('hyperx')
@@ -6225,7 +6437,7 @@ module.exports = function (document) {
   return exports
 }
 
-},{"./append-child":42,"./bool-props":43,"./direct-props":45,"./svg-tags":47,"hyperx":35}],47:[function(require,module,exports){
+},{"./append-child":45,"./bool-props":46,"./direct-props":48,"./svg-tags":50,"hyperx":38}],50:[function(require,module,exports){
 'use strict'
 
 module.exports = [
@@ -6245,7 +6457,7 @@ module.exports = [
   'tspan', 'use', 'view', 'vkern'
 ]
 
-},{}],48:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 var assert = require('assert')
 
 var emojis = {
@@ -6410,7 +6622,7 @@ function pad (str) {
   return str.length !== 2 ? 0 + str : str
 }
 
-},{"assert":8}],49:[function(require,module,exports){
+},{"assert":11}],52:[function(require,module,exports){
 module.exports = LRU
 
 function LRU (opts) {
@@ -6548,7 +6760,7 @@ LRU.prototype.evict = function () {
   this.remove(this.tail)
 }
 
-},{}],50:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 var assert = require('nanoassert')
 var morph = require('./lib/morph')
 
@@ -6713,7 +6925,7 @@ function same (a, b) {
   return false
 }
 
-},{"./lib/morph":52,"nanoassert":38}],51:[function(require,module,exports){
+},{"./lib/morph":55,"nanoassert":41}],54:[function(require,module,exports){
 module.exports = [
   // attribute events (can be set with attributes)
   'onclick',
@@ -6757,7 +6969,7 @@ module.exports = [
   'onfocusout'
 ]
 
-},{}],52:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 var events = require('./events')
 var eventsLength = events.length
 
@@ -6932,7 +7144,7 @@ function updateAttribute (newNode, oldNode, name) {
   }
 }
 
-},{"./events":51}],53:[function(require,module,exports){
+},{"./events":54}],56:[function(require,module,exports){
 var reg = /([^?=&]+)(=([^&]*))?/g
 var assert = require('assert')
 
@@ -6956,7 +7168,7 @@ function qs (url) {
   return obj
 }
 
-},{"assert":38}],54:[function(require,module,exports){
+},{"assert":41}],57:[function(require,module,exports){
 'use strict'
 
 var assert = require('assert')
@@ -6993,7 +7205,7 @@ function nanoraf (render, raf) {
   }
 }
 
-},{"assert":38}],55:[function(require,module,exports){
+},{"assert":41}],58:[function(require,module,exports){
 var assert = require('assert')
 var wayfarer = require('wayfarer')
 
@@ -7049,7 +7261,7 @@ function pathname (routename, isElectron) {
   return decodeURI(routename.replace(suffix, '').replace(normalize, '/'))
 }
 
-},{"assert":38,"wayfarer":73}],56:[function(require,module,exports){
+},{"assert":41,"wayfarer":76}],59:[function(require,module,exports){
 var assert = require('assert')
 
 var hasWindow = typeof window !== 'undefined'
@@ -7106,7 +7318,7 @@ NanoScheduler.prototype.setTimeout = function (cb) {
 
 module.exports = createScheduler
 
-},{"assert":38}],57:[function(require,module,exports){
+},{"assert":41}],60:[function(require,module,exports){
 var Nanobus = require('nanobus')
 var assert = require('assert')
 var Parallelstate = require('./parallel-state')
@@ -7174,7 +7386,7 @@ Nanostate.prototype._next = function (eventName) {
   return this.transitions[this.state][eventName]
 }
 
-},{"./parallel-state":58,"assert":38,"nanobus":39}],58:[function(require,module,exports){
+},{"./parallel-state":61,"assert":41,"nanobus":42}],61:[function(require,module,exports){
 var Nanobus = require('nanobus')
 var assert = require('assert')
 
@@ -7214,7 +7426,7 @@ Parallelstate.prototype.emit = function (eventName) {
   Nanobus.prototype.emit.call(this, eventName)
 }
 
-},{"assert":38,"nanobus":39}],59:[function(require,module,exports){
+},{"assert":41,"nanobus":42}],62:[function(require,module,exports){
 var scheduler = require('nanoscheduler')()
 var assert = require('assert')
 
@@ -7264,7 +7476,7 @@ function noop (cb) {
   }
 }
 
-},{"assert":38,"nanoscheduler":56}],60:[function(require,module,exports){
+},{"assert":41,"nanoscheduler":59}],63:[function(require,module,exports){
 /*
 object-assign
 (c) Sindre Sorhus
@@ -7356,7 +7568,7 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 	return to;
 };
 
-},{}],61:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 var assert = require('assert')
 
 module.exports = objectChangeCallsite
@@ -7393,7 +7605,7 @@ function strip (str) {
   return '\n' + arr.join('\n')
 }
 
-},{"assert":8}],62:[function(require,module,exports){
+},{"assert":11}],65:[function(require,module,exports){
 /* global MutationObserver */
 var document = require('global/document')
 var window = require('global/window')
@@ -7497,7 +7709,7 @@ function eachMutation (nodes, fn) {
   }
 }
 
-},{"assert":38,"global/document":32,"global/window":33}],63:[function(require,module,exports){
+},{"assert":41,"global/document":35,"global/window":36}],66:[function(require,module,exports){
 var scheduler = require('nanoscheduler')()
 var assert = require('assert')
 
@@ -7557,7 +7769,7 @@ function onPerformance (cb) {
   }
 }
 
-},{"assert":38,"nanoscheduler":56}],64:[function(require,module,exports){
+},{"assert":41,"nanoscheduler":59}],67:[function(require,module,exports){
 module.exports = plucker
 
 function plucker(path, object) {
@@ -7594,7 +7806,7 @@ function pluck(path) {
   }
 }
 
-},{}],65:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 module.exports = prettierBytes
 
 function prettierBytes (num) {
@@ -7626,7 +7838,7 @@ function prettierBytes (num) {
   }
 }
 
-},{}],66:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -7812,7 +8024,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],67:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 'use strict'
 
 /**
@@ -7841,7 +8053,7 @@ module.exports = function removeItems (arr, startIdx, removeCount) {
   arr.length = len
 }
 
-},{}],68:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 module.exports = scrollToAnchor
 
 function scrollToAnchor (anchor, options) {
@@ -7853,10 +8065,10 @@ function scrollToAnchor (anchor, options) {
   }
 }
 
-},{}],69:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 module.exports = require('insert-css')
 
-},{"insert-css":37}],70:[function(require,module,exports){
+},{"insert-css":40}],73:[function(require,module,exports){
 var fastSafeStringify = require('fast-safe-stringify')
 var copy = require('clipboard-copy')
 
@@ -7873,7 +8085,7 @@ function stateCopy (obj) {
 
 module.exports = stateCopy
 
-},{"clipboard-copy":28,"fast-safe-stringify":31}],71:[function(require,module,exports){
+},{"clipboard-copy":31,"fast-safe-stringify":34}],74:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -8398,7 +8610,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],72:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var assert = require('assert')
 
@@ -8436,7 +8648,7 @@ function getAllRoutes (router) {
   return transform(tree)
 }
 
-},{"assert":38}],73:[function(require,module,exports){
+},{"assert":41}],76:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var assert = require('assert')
 var trie = require('./trie')
@@ -8511,7 +8723,7 @@ function Wayfarer (dft) {
   }
 }
 
-},{"./trie":74,"assert":38}],74:[function(require,module,exports){
+},{"./trie":77,"assert":41}],77:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var assert = require('assert')
 
@@ -8652,4 +8864,4 @@ function has (object, property) {
   return Object.prototype.hasOwnProperty.call(object, property)
 }
 
-},{"assert":38}]},{},[6]);
+},{"assert":41}]},{},[9]);

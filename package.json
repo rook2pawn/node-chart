@@ -27,6 +27,7 @@
     "http-server": "^0.12.3",
     "nanostate": "^1.2.1",
     "sheetify": "^8.0.0",
-    "watchify": "^3.11.1"
+    "watchify": "^3.11.1",
+    "ws": "^7.4.0"
   }
 }
