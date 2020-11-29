@@ -77,8 +77,7 @@ const Chart = function () {
     maxY: 100,
   };
 };
-Chart.prototype.set = function (attr, data) {
-  this.attributes[attr] = data;
+Chart.prototype.setBoundaries = function (data) {
   const { minX, maxX, minY, maxY } = getBoundaries(data);
   this.attributes.minX = minX;
   this.attributes.minY = minY;
@@ -87,19 +86,50 @@ Chart.prototype.set = function (attr, data) {
   this.attributes.width = maxX - minX;
   this.attributes.height = maxY - minY;
   console.log("attributes:", this.attributes);
-  this.scaledData = this.attributes["data"].map(({ x, y }) => {
-    console.log("INPUT:", { x, y }, "height:", this.attributes.height);
+};
+Chart.prototype.scaleData = function (data) {
+  this.scaledData = this.attributes["data"].map(({ x, y }, idx) => {
+    let scaledX = (x - this.attributes.minX) / this.attributes.width;
     let scaledY = (y - this.attributes.minY) / this.attributes.height;
-    console.log("OUTPUT:", { x, scaledY });
-    return { x, y: scaledY };
+    if (idx < 10) {
+      console.log("INPUT:", { x, y }, "height:", this.attributes.height);
+      console.log("OUTPUT:", { x: scaledX, y: scaledY });
+    }
+    return { x: scaledX, y: scaledY };
   });
+};
+Chart.prototype.zoomIn = function () {
+  this.attributes.minX += 4;
+  this.attributes.width = this.attributes.maxX - this.attributes.minX;
+  console.log(
+    "zoomIn: minX",
+    this.attributes.minX,
+    " width:",
+    this.attributes.width
+  );
+};
+Chart.prototype.zoomOut = function () {
+  this.attributes.minX -= 4;
+  this.attributes.width = this.attributes.maxX - this.attributes.minX;
+  console.log(
+    "zoomOut: minX",
+    this.attributes.minX,
+    " width:",
+    this.attributes.width
+  );
+};
+
+Chart.prototype.set = function (attr, data) {
+  this.attributes[attr] = data;
+  this.setBoundaries(data);
+  this.scaleData(data);
 };
 Chart.prototype.render = function ({ type }) {
   console.log("TYPE:", type);
   switch (type) {
     case "polyline":
       const pointstring = this.scaledData
-        .map(({ x, y }) => `${x},${100 * y}`)
+        .map(({ x, y }) => `${100 * x},${100 * y}`)
         .join("\n");
       return html`<svg viewBox="0 0 100 100" class="chart">
         <polyline
@@ -113,7 +143,7 @@ Chart.prototype.render = function ({ type }) {
     case "point":
       return html`<svg viewBox="0 0 100 100" class="chart">
         ${this.scaledData.map(({ x, y }) => {
-          return html`<circle cx="${x}" cy="${100 * y}" r="1"></circle>`;
+          return html`<circle cx="${100 * x}" cy="${100 * y}" r="1"></circle>`;
         })}
       </svg>`;
 
@@ -276,8 +306,37 @@ class Component extends Nanocomponent {
     this.chart.set("data", data);
   }
 
+  zoom({ direction }) {
+    switch (direction) {
+      case "in":
+        this.chart.zoomIn();
+        this.chart.scaleData();
+        this.rerender();
+        break;
+      case "out":
+        this.chart.zoomOut();
+        this.chart.scaleData();
+        this.rerender();
+
+        break;
+      default:
+        break;
+    }
+  }
+
+  wheel(e) {
+    console.log("DELTAY:", e.deltaY);
+    let direction = "in";
+    if (e.deltaY > 0) {
+      direction = "out";
+    } else {
+      direction = "in";
+    }
+    this.zoom({ direction });
+  }
   load(el) {
     this.el = el;
+    this.el.onwheel = this.wheel.bind(this);
     this._loadedResolve();
   }
 

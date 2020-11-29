@@ -136,8 +136,37 @@ class Component extends Nanocomponent {
     this.chart.set("data", data);
   }
 
+  zoom({ direction }) {
+    switch (direction) {
+      case "in":
+        this.chart.zoomIn();
+        this.chart.scaleData();
+        this.rerender();
+        break;
+      case "out":
+        this.chart.zoomOut();
+        this.chart.scaleData();
+        this.rerender();
+
+        break;
+      default:
+        break;
+    }
+  }
+
+  wheel(e) {
+    console.log("DELTAY:", e.deltaY);
+    let direction = "in";
+    if (e.deltaY > 0) {
+      direction = "out";
+    } else {
+      direction = "in";
+    }
+    this.zoom({ direction });
+  }
   load(el) {
     this.el = el;
+    this.el.onwheel = this.wheel.bind(this);
     this._loadedResolve();
   }
 
