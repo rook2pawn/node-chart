@@ -1,0 +1,15 @@
+div.fsmRender {
+  border: thin solid black;
+  padding: 10px;
+  font-size: 12px;
+}
+div.fsmRender div.currentState {
+  margin-bottom: 10px;
+  border-bottom: thin dotted #ccc;
+}
+div.fsmRender div.states span.active {
+  background-color: pink;
+}
+div.fsmRender div.states span.value {
+  word-break: break-all;
+}

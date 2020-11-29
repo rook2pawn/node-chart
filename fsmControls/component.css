@@ -1,0 +1,10 @@
+div.fsmControls {
+  font-size: 12px;
+  font-family: sans-serif;
+}
+div.regularControls {
+  font-weight: bold;
+}
+div.subControls {
+  font-weight: bold;
+}

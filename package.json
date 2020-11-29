@@ -4,20 +4,29 @@
   "description": "event based time series charting API",
   "version": "0.1.2",
   "homepage": "https://github.com/rook2pawn/node-chart",
-  "keywords" : [
+  "keywords": [
     "chart",
     "time series",
-    "canvas"
-   ],
+    "svg"
+  ],
   "repository": {
     "type": "git",
     "url": "git://github.com/rook2pawn/node-chart.git"
   },
   "main": "index.js",
-  "dependencies": {
-    "hat" :"",
-    "mrcolor" :"https://github.com/rook2pawn/mrcolor/archive/master.tar.gz",
-    "hashish" : ""
+  "scripts": {
+    "start": "http-server -o -c-1 -p 8080 ",
+    "build": "watchify -v -g sheetify index.js -o bundle.js",
+    "browser": "npm run build && npm run start"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "dependencies": {
+    "browserify": "^17.0.0",
+    "choo": "^7.1.0",
+    "choo-devtools": "^3.0.4",
+    "http-server": "^0.12.3",
+    "nanostate": "^1.2.1",
+    "sheetify": "^8.0.0",
+    "watchify": "^3.11.1"
+  }
 }
