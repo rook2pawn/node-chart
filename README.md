@@ -15,3 +15,9 @@ SVG Time Series Charting API
     ];
 
     chart.set('data', points)
+
+# TODO
+
+Scale data based on what's visible (minY, maxY)
+Do sample data and then a random stream that's much smaller in y-values to test that scaling data works based on what's visible.
+Zoom in, which rescales the graphs, should hold on data update.

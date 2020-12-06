@@ -41,6 +41,7 @@ class Component extends Nanocomponent {
     });
 
     dataSourceControlState.on("started", () => {
+      this.data.stop();
       this.data.start();
     });
     dataSourceControlState.on("stopped", () => {

@@ -13,6 +13,11 @@ class Component extends Nanocomponent {
     this.loaded = new Promise((resolve, reject) => {
       this._loadedResolve = resolve;
     });
+    this.scroll = {
+      lock: false,
+      distance: 0,
+      prevX: 0,
+    };
     this.chart = new Chart();
     this.chart.set("data", [
       { x: 0, y: 5 },
@@ -44,10 +49,13 @@ class Component extends Nanocomponent {
   }
 
   createElement({ state, emit }) {
-    console.log("Chart Component Render");
+    const offset = this.scroll.distance;
     return html`<div class="polyline">
       <h2>Chart</h2>
-      ${this.chart.render({ type: this.fsm.transitions.chartType.state })}
+      ${this.chart.render({
+        type: this.fsm.transitions.chartType.state,
+        offset,
+      })}
       <div>
         <div>Chart Data Source</div>
         <div>${this.fsm.transitions.chartData.state}</div>
@@ -62,12 +70,12 @@ class Component extends Nanocomponent {
   addSingleData(val) {
     this.chart.addSingleYValueData(val);
     this.chart.setBoundaries();
-    this.chart.scaleData();
+    this.chart.normalizeData();
   }
   addData(list) {
     this.chart.addData(list);
     this.chart.setBoundaries();
-    this.chart.scaleData();
+    this.chart.normalizeData();
   }
 
   zoom({ direction }) {
@@ -76,7 +84,7 @@ class Component extends Nanocomponent {
         this.chart
           .zoomIn()
           .then(() => {
-            this.chart.scaleData();
+            this.chart.normalizeData();
             this.rerender();
           })
           .catch((e) => {
@@ -87,7 +95,7 @@ class Component extends Nanocomponent {
         this.chart
           .zoomOut()
           .then(() => {
-            this.chart.scaleData();
+            this.chart.normalizeData();
             this.rerender();
           })
           .catch((e) => {
@@ -108,9 +116,38 @@ class Component extends Nanocomponent {
     }
     this.zoom({ direction });
   }
+  scrollstart(e) {
+    this.scroll.lock = true;
+    this.scroll.prevX = e.pageX;
+  }
+  scrollstop(e) {
+    this.scroll.lock = false;
+    this.scroll.distance = this.scroll.distance + e.pageX - this.scroll.prevX;
+    console.log("e.pageX:", e.pageX, "distnace:", this.scroll.distance);
+    this.scroll.prevX = e.pageX;
+    this.rerender();
+  }
+  scrollmove(e) {
+    if (!this.scroll.lock) return;
+    this.scroll.distance = this.scroll.distance + e.pageX - this.scroll.prevX;
+    this.scroll.prevX = e.pageX;
+    console.log("e.pageX:", e.pageX, "distnace:", this.scroll.distance);
+
+    this.rerender();
+  }
+  afterupdate(el) {
+    this.el = el;
+    this.el.onwheel = this.wheel.bind(this);
+    this.el.onmousedown = this.scrollstart.bind(this);
+    this.el.onmouseup = this.scrollstop.bind(this);
+    this.el.onmousemove = this.scrollmove.bind(this);
+  }
   load(el) {
     this.el = el;
     this.el.onwheel = this.wheel.bind(this);
+    this.el.onmousedown = this.scrollstart.bind(this);
+    this.el.onmouseup = this.scrollstop.bind(this);
+    this.el.onmousemove = this.scrollmove.bind(this);
     this._loadedResolve();
   }
 
