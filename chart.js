@@ -34,7 +34,8 @@ Chart.prototype.getBoundaries = (list) => {
     minY = MAX;
   let maxX = -MAX,
     maxY = -MAX;
-  list.slice(-10).forEach(({ x, y }) => {
+  console.log("getBoundaries:", this.chartAttributes);
+  list.slice(-5).forEach(({ x, y }) => {
     if (x < minX) {
       minX = x;
     }

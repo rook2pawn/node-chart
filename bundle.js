@@ -113,7 +113,8 @@ Chart.prototype.getBoundaries = (list) => {
     minY = MAX;
   let maxX = -MAX,
     maxY = -MAX;
-  list.slice(-10).forEach(({ x, y }) => {
+  console.log("getBoundaries:", this.chartAttributes);
+  list.slice(-5).forEach(({ x, y }) => {
     if (x < minX) {
       minX = x;
     }
@@ -327,6 +328,10 @@ class Component extends Nanocomponent {
       { x: 8, y: 48 },
       { x: 9, y: 35 },
       { x: 10, y: 27 },
+      { x: 11, y: 7 },
+      { x: 12, y: 5 },
+      { x: 13, y: 2 },
+      { x: 14, y: 1 },
     ]);
 
     const chartTypeState = nanostate("polyline", {
