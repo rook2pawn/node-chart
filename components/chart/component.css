@@ -1,4 +1,8 @@
-.chart {
+div.chartWrapper {
+  user-select: none;
+}
+
+svg.chart {
   width: 500px;
 }
 svg.chart text.label {

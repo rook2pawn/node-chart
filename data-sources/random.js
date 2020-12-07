@@ -11,7 +11,7 @@ Random.prototype.start = function () {
       this.isFlipped = !this.isFlipped;
     }, 10 * 1000);
     this.timer = setInterval(() => {
-      let number = this.isFlipped ? Math.random() * 1 : Math.random() * 10;
+      let number = this.isFlipped ? Math.random() * 100 : Math.random() * 10;
       this.cb(number);
     }, 1000);
     return resolve();

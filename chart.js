@@ -5,6 +5,7 @@ const round = (x) => {
 };
 
 const Chart = function () {
+  // normalize x, y onto [0,1]
   this.normalizedData = [];
   this.screenData = [];
   // visual attributes

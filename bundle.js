@@ -84,6 +84,7 @@ const round = (x) => {
 };
 
 const Chart = function () {
+  // normalize x, y onto [0,1]
   this.normalizedData = [];
   this.screenData = [];
   // visual attributes
@@ -296,13 +297,14 @@ const Nanocomponent = require("nanocomponent");
 const html = require("choo/html");
 const css = 0;
 const nanostate = require("nanostate");
-const Chart = require("../../chart.js");
+const ChartSVG = require("../../chart.js");
 
-;((require('sheetify/insert')(".chart {\n  width: 500px;\n}\nsvg.chart text.label {\n  fill: #000000;\n  font: italic 9px sans-serif;\n}") || true) && "_6cd7a4f4");
+;((require('sheetify/insert')("div.chartWrapper {\n  user-select: none;\n}\n\nsvg.chart {\n  width: 500px;\n}\nsvg.chart text.label {\n  fill: #000000;\n  font: italic 9px sans-serif;\n}") || true) && "_bdca4d17");
 
 class Component extends Nanocomponent {
   constructor() {
     super();
+    this.emit;
     this._loadedResolve;
     this.loaded = new Promise((resolve, reject) => {
       this._loadedResolve = resolve;
@@ -312,7 +314,7 @@ class Component extends Nanocomponent {
       distance: 0,
       prevX: 0,
     };
-    this.chart = new Chart();
+    this.chart = new ChartSVG();
     this.chart.set("data", [
       { x: 0, y: 5 },
       { x: 1, y: 10 },
@@ -343,20 +345,32 @@ class Component extends Nanocomponent {
   }
 
   createElement({ state, emit }) {
-    const offset = this.scroll.distance;
-    return html`<div class="polyline">
-      <h2>Chart</h2>
-      ${this.chart.render({
-        type: this.fsm.transitions.chartType.state,
-        offset,
-      })}
+    this.emit = emit;
+    this.chartEl = this.chart.render({
+      type: this.fsm.transitions.chartType.state,
+      offset: this.scroll.distance,
+    });
+    console.log("createElement!!");
+    return html`<div>
+      <div
+        class="chartWrapper"
+        onwheel=${this.wheel.bind(this)}
+        onmouseout=${this.scrollstop.bind(this)}
+        onmousedown=${this.scrollstart.bind(this)}
+        onmouseup=${this.scrollstop.bind(this)}
+        onmousemove=${this.scrollmove.bind(this)}
+      >
+        ${this.chartEl}
+      </div>
       <div>
         <div>Chart Data Source</div>
         <div>${this.fsm.transitions.chartData.state}</div>
       </div>
     </div>`;
   }
-
+  unload() {
+    console.log("No longer mounted on the DOM!");
+  }
   set(data) {
     this.chart.set("data", data);
   }
@@ -411,60 +425,72 @@ class Component extends Nanocomponent {
     this.zoom({ direction });
   }
   scrollstart(e) {
-    this.scroll.lock = true;
+    this.scroll.inProgress = true;
     this.scroll.prevX = e.pageX;
   }
   scrollstop(e) {
-    this.scroll.lock = false;
-    this.scroll.distance = this.scroll.distance + e.pageX - this.scroll.prevX;
-    console.log("e.pageX:", e.pageX, "distnace:", this.scroll.distance);
-    this.scroll.prevX = e.pageX;
-    this.rerender();
+    if (this.scroll.inProgress === false) {
+      console.log("scroll stop! Scroll inProgress:", this.scroll.inProgress);
+
+      return;
+    } else {
+      this.scroll.inProgress = false;
+      console.log("scroll stop! Scroll inProgress:", this.scroll.inProgress);
+    }
   }
   scrollmove(e) {
-    if (!this.scroll.lock) return;
-    this.scroll.distance = this.scroll.distance + e.pageX - this.scroll.prevX;
+    if (!this.scroll.inProgress) return;
+    const diff = e.pageX - this.scroll.prevX;
     this.scroll.prevX = e.pageX;
-    console.log("e.pageX:", e.pageX, "distnace:", this.scroll.distance);
 
-    this.rerender();
-  }
-  afterupdate(el) {
-    this.el = el;
-    this.el.onwheel = this.wheel.bind(this);
-    this.el.onmousedown = this.scrollstart.bind(this);
-    this.el.onmouseup = this.scrollstop.bind(this);
-    this.el.onmousemove = this.scrollmove.bind(this);
+    if (diff < 0) {
+      this.scroll.distance += Math.abs(diff);
+    } else if (diff > 0) {
+      this.scroll.distance -= Math.abs(diff);
+    } else {
+      return;
+    }
+    this.update({ isScrolling: true });
   }
   load(el) {
     this.el = el;
-    this.el.onwheel = this.wheel.bind(this);
-    this.el.onmousedown = this.scrollstart.bind(this);
-    this.el.onmouseup = this.scrollstop.bind(this);
-    this.el.onmousemove = this.scrollmove.bind(this);
     this._loadedResolve();
   }
+  renderInternalChart() {
+    console.log("renderInternalChart:", this.scroll.distance);
+    this.el.querySelector("svg").replaceWith(
+      this.chart.render({
+        type: this.fsm.transitions.chartType.state,
+        offset: this.scroll.distance,
+      })
+    );
+  }
 
-  update({ state, emit, type, value }) {
-    if (type !== undefined) {
-      //      console.log("UPDATE!:", type, value);
-      if (type !== this.fsm.transitions.chartData.state) {
-        return;
+  update({ state, emit, type, value, isScrolling }) {
+    if (isScrolling) {
+      this.renderInternalChart();
+      return false;
+    } else {
+      if (type !== undefined) {
+        //      console.log("UPDATE!:", type, value);
+        if (type !== this.fsm.transitions.chartData.state) {
+          return;
+        }
+        switch (type) {
+          case "random":
+            this.addSingleData(value);
+            this.renderInternalChart();
+            break;
+          case "binance":
+            this.addSingleData(value);
+            this.renderInternalChart();
+            break;
+          default:
+            break;
+        }
       }
-      switch (type) {
-        case "random":
-          this.addSingleData(value);
-          this.rerender();
-          break;
-        case "binance":
-          this.addSingleData(value);
-          this.rerender();
-          break;
-        default:
-          break;
-      }
+      return false;
     }
-    return true;
   }
 }
 
@@ -609,7 +635,7 @@ Random.prototype.start = function () {
       this.isFlipped = !this.isFlipped;
     }, 10 * 1000);
     this.timer = setInterval(() => {
-      let number = this.isFlipped ? Math.random() * 1 : Math.random() * 10;
+      let number = this.isFlipped ? Math.random() * 100 : Math.random() * 10;
       this.cb(number);
     }, 1000);
     return resolve();
